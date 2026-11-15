@@ -6,6 +6,7 @@ import { active, $, esc, eu, T, bandInfo, phase, gpath, bpath, remaining, fmt, h
 import { PHASES } from "./config.js";
 import { avatarSVG, avName, AVATARS, AV_NAMES } from "./avatars.js";
 import * as LOC from "./loc.js";
+import * as FUR from "./fur.js";
 import { mountPuzzle, updatePuzzle, unmountPuzzle, isPuzzle } from "./puzzles.js";
 
 let app, unsub = [], tick = null, G = null, B = null, me = null, BS = {};
@@ -66,12 +67,18 @@ async function join(m) {
   } catch (e) { return showErr(e); }
   unsub.push(DB.onDoc(gpath(m.code), (g) => { G = g; draw(); }));
   unsub.push(DB.onDoc(bpath(m.code, m.band), (b) => { B = b; draw(); }));
-  unsub.push(DB.onCol(`games/${m.code}/bands`, (all) => { BS = all || {}; if (G && phase(G.phase).key === "loc") draw(); }));
-  tick = setInterval(() => { if (G && phase(G.phase).key === "loc") LOC.barTick(app, G); const el = $("#jt"); if (el && G) { const r = remaining(G); el.textContent = r == null ? "" : fmt(r); el.classList.toggle("low", r != null && r < 60000); } }, 150);
+  unsub.push(DB.onCol(`games/${m.code}/bands`, (all) => { BS = all || {}; if (G && ["loc", "fur"].includes(phase(G.phase).key)) draw(); }));
+  tick = setInterval(() => { if (G && phase(G.phase).key === "loc") LOC.barTick(app, G); if (G && phase(G.phase).key === "fur" && G.stage === "play" && $("#fmain")) renderFur(); const el = $("#jt"); if (el && G) { const r = remaining(G); el.textContent = r == null ? "" : fmt(r); el.classList.toggle("low", r != null && r < 60000); } }, 150);
 }
 
 let mode = null;
+function renderFur() {
+  const k = "fur:" + FUR.studentKey(G, me);
+  if (mode !== k) { mode = k; if (!$("#fmain")) $("#jbody").innerHTML = header(phase(G.phase)) + '<div id="fmain"></div><div id="fbd"></div>'; $("#fmain").innerHTML = FUR.student(G, BS, me); }
+  const bd = $("#fbd"); if (bd) { const h = FUR.board(G, BS); if (bd.dataset.h !== h) { bd.dataset.h = h; bd.innerHTML = h; } }
+}
 document.addEventListener("click", (e) => { if (G && location.hash.startsWith("#/jugar") && phase(G.phase).key === "loc") LOC.studentClick(e, G); });
+["click", "submit", "change"].forEach((ev) => document.addEventListener(ev, (e) => { if (G && me && location.hash.startsWith("#/jugar") && phase(G.phase).key === "fur") FUR.studentEvent(e, G, me); }));
 function draw() {
   if (!G || !B) return;
   const p = phase(G.phase), mem = Object.entries(B.members || {}).filter(([, x]) => active(x));
@@ -84,6 +91,7 @@ function draw() {
     if (mode !== "loc:" + html) { mode = "loc:" + html; $("#jbody").innerHTML = html; LOC.studentAfter($("#jbody"), G); }
     return;
   }
+  if (p.key === "fur" && G.stage === "play") { unmountPuzzle(); return renderFur(); }
   const isPz = isPuzzle(p.key) && (G.stage === "play" || G.stage === "paused");
   const m = isPz ? "pz:" + p.key : JSON.stringify([G.phase, G.stage, B.size, mem.map(([, x]) => x.name)]);
   if (m === mode) { if (isPz) updatePuzzle(G, B); return; }

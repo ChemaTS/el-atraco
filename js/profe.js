@@ -6,6 +6,7 @@ import { BANDS, PHASES, TEACHER_PASSWORD, MONEY, BAND_NAMES } from "./config.js"
 import { PUZZLES, PZPATH } from "./puzzles.js";
 import { avName } from "./avatars.js";
 import * as LOC from "./loc.js";
+import * as FUR from "./fur.js";
 import { active, $, esc, eu, T, bandInfo, phase, gpath, bpath, createGame, addMoney, remaining, fmt, startPlay, showErr } from "./core.js";
 
 let solOpen = false;
@@ -43,7 +44,9 @@ function open(code) {
   app.innerHTML = `<p class="lead">Abriendo ${esc(code)}…</p>`;
   unsub.push(DB.onDoc(gpath(code), (g) => { G = g; if (!g) { app.innerHTML = `<div class="err">No existe la partida ${esc(code)}.</div><p><a class="btn" href="#/profe">Volver</a></p>`; return; } draw(); }));
   unsub.push(DB.onCol(`games/${code}/bands`, (b) => { BS = b || {}; G && draw(); }));
-  tick = setInterval(() => { if (G && phase(G.phase).key === "loc" && G.stage === "play") LOC.hostTick(G, BS); const el = $("#ptime"); const r = remaining(G); if (el) el.textContent = r == null ? "—" : fmt(r); }, 500);
+  let furWas = null;
+  tick = setInterval(() => { if (G && phase(G.phase).key === "loc" && G.stage === "play") LOC.hostTick(G, BS);
+    if (G && G.fur && G.fur.phase === "reveal") { const d = FUR.revealDone(G.fur, G); if (d !== furWas) { furWas = d; draw(); } } const el = $("#ptime"); const r = remaining(G); if (el) el.textContent = r == null ? "—" : fmt(r); }, 500);
 }
 
 const STAGE = { ready: "Preparada", video: "Vídeo", play: "En juego", paused: "Pausa" };
@@ -76,6 +79,24 @@ function locPanel() {
     <table class="tbl" style="margin-top:12px"><thead><tr><th>Banda</th><th>Aciertos / preguntas</th></tr></thead><tbody>${stats}</tbody></table>
     ${(L.log || []).length ? `<ul style="margin:10px 0 0">${L.log.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}`);
 }
+function furPanel() {
+  if (phase(G.phase).key !== "fur") return "";
+  const F = G.fur || {}, play = G.stage === "play", now = Date.now();
+  const nb = G.bands.filter((b) => F.bids?.[b] != null).length, dr = F.phase && F.phase !== "ask" ? FUR.drivers(F, G) : [];
+  const need = G.bands.filter((b) => !dr.includes(b) && F.bids?.[b] != null), nc = need.filter((b) => F.ch?.[b]).length;
+  let btn = "";
+  if (!F.phase) btn = `<button class="btn red" data-fur="start"${play ? "" : " disabled"}>Sacar el primer furgón</button>${play ? "" : ' <span style="color:var(--muted)">Primero lanza el vídeo o pulsa «Saltar vídeo / iniciar fase».</span>'}`;
+  else if (F.phase === "ask") btn = `<button class="btn red" data-fur="reveal"${nb ? "" : " disabled"}>Destapar cifras (${nb}/${G.bands.length})</button>`;
+  else if (F.phase === "reveal") btn = FUR.revealDone(F, G, now) ? `<button class="btn red" data-fur="roll">Revelar respuesta (${nc}/${need.length} han decidido)</button>` : '<span style="color:var(--muted)">Destapando cifras…</span>';
+  else if (F.phase === "roll" && F.round < FUR.ROUNDS) btn = `<button class="btn red" data-fur="next">Siguiente furgón (${F.round + 1}/${FUR.ROUNDS})</button>`;
+  else if (F.phase === "roll") btn = `<button class="btn red" data-fur="end">Terminar la huida</button>`;
+  const q = F.qi != null ? FUR.FQ[F.qi] : null;
+  const rows = G.bands.map((b) => { const s = (F.stats || {})[b] || {}; return `<tr><td><span class="dot" style="--bc:${BS[b]?.color}"></span>${esc(BS[b]?.name || b)}</td><td>${F.bids?.[b] != null ? F.bids[b].v.toLocaleString("es-ES") : "—"}</td><td>${F.ch?.[b] ? (F.ch[b].v === "sube" ? "sube" : "abajo") : "—"}</td><td>${(s.pts || 0).toFixed(1)} / ${s.n || 0}</td></tr>`; }).join("");
+  return T("El furgón", `<p style="margin:0 0 10px">${F.phase ? `Ronda ${F.round} de ${FUR.ROUNDS} · fase: <b>${esc(F.phase)}</b>${q ? ` · respuesta: <b>${q.a.toLocaleString("es-ES")}</b>` : ""}` : "Sin empezar."}</p>
+    <div class="row">${btn}</div>${q ? `<p style="margin:10px 0 0;color:var(--muted)">${esc(q.q)}</p>` : ""}
+    <table class="tbl" style="margin-top:12px"><thead><tr><th>Banda</th><th>Cifra</th><th>Decisión</th><th>Precisión (nota)</th></tr></thead><tbody>${rows}</tbody></table>
+    ${(F.log || []).length ? `<ul style="margin:10px 0 0">${F.log.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}`);
+}
 function draw() {
   watchPz();
   const g = G, p = phase(g.phase), r = remaining(g);
@@ -93,7 +114,7 @@ function draw() {
       <button class="btn" data-a="plus"${g.stage === "play" && g.endsAt ? "" : " disabled"}>+2 min</button>
       <button class="btn red" data-a="next"${g.phase >= PHASES.length - 1 ? " disabled" : ""}>Siguiente fase →</button>
     </div>`)}
-  ${pzPanel()}${locPanel()}
+  ${pzPanel()}${locPanel()}${furPanel()}
   ${T("Hilo de la partida", `<div class="phases">${PHASES.map((q, i) => `<div class="ph${i === g.phase ? " cur" : ""}"><b>${i}. ${esc(q.area)}</b><span>${esc(q.title)}</span>${q.minutes ? `<label class="row" style="gap:4px;font-size:13px;color:var(--muted)"><input class="inp" style="width:4.5em;font-size:14px;padding:4px 6px" type="number" min="1" max="60" data-min="${q.key}" value="${g.minutes?.[q.key] ?? q.minutes}" aria-label="Minutos de ${esc(q.title)}"> min</label>` : ""}<button class="btn" data-go="${i}"${i === g.phase ? " disabled" : ""}>Ir</button></div>`).join("")}</div>`)}
   ${T("Bandas", `<table class="tbl"><thead><tr><th>Banda</th><th>Botín</th><th>Alumnos</th><th>Ajustar dinero</th></tr></thead><tbody>
     ${bands.map((b) => { const ms = Object.values(b.members || {}).filter(active); return `<tr><td><form class="row" data-name="${b.id}" style="gap:6px"><span class="dot" style="--bc:${b.color}"></span><input class="inp" id="nm-${b.id}" style="width:14em;font-size:14px;padding:6px" maxlength="32" value="${esc(b.name)}" aria-label="Nombre de la banda ${esc(bandInfo(b.id).name)}"><button class="btn" type="button" data-dice="${b.id}" title="Nombre aleatorio" aria-label="Nombre aleatorio">🎲</button><button class="btn">Guardar</button></form><small style="color:var(--muted)">color ${esc(bandInfo(b.id).name).toLowerCase()} · grupo de <select data-size="${b.id}" aria-label="Tamaño del grupo ${esc(b.name)}" style="background:var(--bg);color:var(--fg);border:1px solid var(--line)"><option${b.size === 4 ? " selected" : ""}>4</option><option${b.size === 5 ? " selected" : ""}>5</option></select>${g.phase === 0 ? " (se fija solo al empezar)" : ""}</small></td><td>${eu(Math.max(0, b.botin))}</td><td>${ms.length ? ms.map((m) => avName(m, 22)).join("") : '<span style="color:var(--muted)">nadie aún</span>'}</td>
@@ -125,6 +146,15 @@ document.addEventListener("click", (e) => {
   const used = new Set(Object.values(BS).map((b) => b.name)), inp = document.getElementById("nm-" + d.dataset.dice);
   const pool = BAND_NAMES.filter((n) => !used.has(n) && n !== inp.value);
   inp.value = pool[Math.floor(Math.random() * pool.length)] || inp.value; inp.focus();
+});
+document.addEventListener("click", (e) => {
+  const f = e.target.closest("[data-fur]"); if (!f || !G || !location.hash.startsWith("#/profe")) return;
+  const a = f.dataset.fur; f.disabled = true;
+  if (a === "start") FUR.startRound(G, 1).catch(showErr);
+  if (a === "reveal") FUR.reveal(G).catch(showErr);
+  if (a === "roll") FUR.roll(G, BS).catch(showErr);
+  if (a === "next") FUR.startRound(G, G.fur.round + 1).catch(showErr);
+  if (a === "end") FUR.endFur(G).catch(showErr);
 });
 document.addEventListener("click", (e) => {
   const l = e.target.closest("[data-loc]"); if (!l || !G || !location.hash.startsWith("#/profe")) return;
