@@ -6,6 +6,7 @@ import { MEDIA } from "./config.js";
 import { avatarSVG } from "./avatars.js";
 import * as LOC from "./loc.js";
 import * as FUR from "./fur.js";
+import * as REC from "./recuento.js";
 import { active, $, esc, eu, phase, gpath, remaining, fmt, startPlay, header } from "./core.js";
 
 let app, unsub = [], tick = null, G = null, BS = {}, armed = false, playingKey = null;
@@ -50,12 +51,20 @@ function draw() {
   drawBoard(); video();
 }
 
+const isFinal = () => G && phase(G.phase).key === "final" && G.stage === "play";
+let recKey = null;
+async function recuento(el) {
+  const rows = await REC.compute(G, BS), key = JSON.stringify(rows.map((r) => [r.botin, r.nota, r.serie]));
+  if (key === recKey && el.querySelector(".rchart")) return; recKey = key;
+  el.innerHTML = `<div class="panel"><h3>El botín, fase a fase</h3>${REC.chart(rows)}</div><div class="rgrid"><div class="panel"><h3>Lo que ganó y perdió cada banda</h3>${REC.ledgerTable(rows)}</div><div class="panel"><h3>Quién escapa más rico</h3>${REC.ranking(rows)}</div></div><div class="panel"><h3>Nota del atraco (solo cuenta lo que depende de saber)</h3>${REC.notes(rows)}</div>`;
+}
 const isFur = () => G && phase(G.phase).key === "fur" && G.stage === "play";
 const isLoc = () => G && phase(G.phase).key === "loc" && G.stage === "play";
 function drawBoard() {
   const el = $("#board"); if (!el || !G) return;
   if (isLoc()) { el.style.display = "block"; el.innerHTML = LOC.projectorView(G, BS); return; }
   if (isFur()) { el.style.display = "block"; FUR.projector(el, G, BS); return; }
+  if (isFinal()) { el.style.display = "block"; recuento(el); return; }
   el.style.display = "";
   el.innerHTML = G.bands.map((id) => BS[id]).filter(Boolean).map((b) => {
     const ms = Object.values(b.members || {}).filter(active);

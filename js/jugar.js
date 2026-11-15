@@ -7,6 +7,7 @@ import { PHASES } from "./config.js";
 import { avatarSVG, avName, AVATARS, AV_NAMES } from "./avatars.js";
 import * as LOC from "./loc.js";
 import * as FUR from "./fur.js";
+import * as REC from "./recuento.js";
 import { mountPuzzle, updatePuzzle, unmountPuzzle, isPuzzle } from "./puzzles.js";
 
 let app, unsub = [], tick = null, G = null, B = null, me = null, BS = {};
@@ -92,6 +93,13 @@ function draw() {
     return;
   }
   if (p.key === "fur" && G.stage === "play") { unmountPuzzle(); return renderFur(); }
+  if (p.key === "final" && G.stage === "play") {
+    unmountPuzzle(); if (mode === "final") return; mode = "final";
+    $("#jbody").innerHTML = header(p) + '<div id="rmine"><p class="lead">Calculando…</p></div>';
+    REC.compute(G, BS).then((rows) => { const r = rows.find((x) => x.id === me.band), pos = rows.slice().sort((a, b) => b.botin - a.botin).findIndex((x) => x.id === me.band) + 1; const el = $("#rmine"); if (!el || !r) return;
+      el.innerHTML = `<div class="watch" style="padding:20px"><b>${esc(r.name)}</b><p class="lead">Escapáis con <b>${eu(r.botin)}</b> · puesto ${pos} de ${rows.length}</p><p style="font:700 64px var(--f-mono);margin:10px 0">${r.nota.toLocaleString("es-ES", { minimumFractionDigits: 1 })}</p><p class="lead">Nota de la banda. Mirad el proyector para ver el recuento completo.</p></div>` + REC.notes([r]); }).catch(console.error);
+    return;
+  }
   const isPz = isPuzzle(p.key) && (G.stage === "play" || G.stage === "paused");
   const m = isPz ? "pz:" + p.key : JSON.stringify([G.phase, G.stage, B.size, mem.map(([, x]) => x.name)]);
   if (m === mode) { if (isPz) updatePuzzle(G, B); return; }

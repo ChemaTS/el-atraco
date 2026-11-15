@@ -7,6 +7,7 @@ import { PUZZLES, PZPATH } from "./puzzles.js";
 import { avName } from "./avatars.js";
 import * as LOC from "./loc.js";
 import * as FUR from "./fur.js";
+import * as REC from "./recuento.js";
 import { active, $, esc, eu, T, bandInfo, phase, gpath, bpath, createGame, addMoney, remaining, fmt, startPlay, showErr } from "./core.js";
 
 let solOpen = false;
@@ -79,6 +80,13 @@ function locPanel() {
     <table class="tbl" style="margin-top:12px"><thead><tr><th>Banda</th><th>Aciertos / preguntas</th></tr></thead><tbody>${stats}</tbody></table>
     ${(L.log || []).length ? `<ul style="margin:10px 0 0">${L.log.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}`);
 }
+let recRows = null;
+function recPanel() {
+  if (phase(G.phase).key !== "final") return "";
+  REC.compute(G, BS).then((rows) => { recRows = rows; const el = $("#recp"); if (el) el.innerHTML = REC.notes(rows) + REC.ledgerTable(rows); }).catch(showErr);
+  return T("Recuento y nota", `<div id="recp"><p class="lead">Calculando…</p></div><p style="margin:12px 0 0"><button class="btn red" data-csv>Exportar resultados (CSV)</button> <span style="color:var(--muted);font-size:14px">Se abre en Excel o Google Sheets.</span></p>`);
+}
+document.addEventListener("click", (e) => { if (e.target.closest("[data-csv]") && G) REC.compute(G, BS).then((rows) => REC.csv(rows, G)).catch(showErr); });
 function furPanel() {
   if (phase(G.phase).key !== "fur") return "";
   const F = G.fur || {}, play = G.stage === "play", now = Date.now();
@@ -114,7 +122,7 @@ function draw() {
       <button class="btn" data-a="plus"${g.stage === "play" && g.endsAt ? "" : " disabled"}>+2 min</button>
       <button class="btn red" data-a="next"${g.phase >= PHASES.length - 1 ? " disabled" : ""}>Siguiente fase →</button>
     </div>`)}
-  ${pzPanel()}${locPanel()}${furPanel()}
+  ${pzPanel()}${locPanel()}${furPanel()}${recPanel()}
   ${T("Hilo de la partida", `<div class="phases">${PHASES.map((q, i) => `<div class="ph${i === g.phase ? " cur" : ""}"><b>${i}. ${esc(q.area)}</b><span>${esc(q.title)}</span>${q.minutes ? `<label class="row" style="gap:4px;font-size:13px;color:var(--muted)"><input class="inp" style="width:4.5em;font-size:14px;padding:4px 6px" type="number" min="1" max="60" data-min="${q.key}" value="${g.minutes?.[q.key] ?? q.minutes}" aria-label="Minutos de ${esc(q.title)}"> min</label>` : ""}<button class="btn" data-go="${i}"${i === g.phase ? " disabled" : ""}>Ir</button></div>`).join("")}</div>`)}
   ${T("Bandas", `<table class="tbl"><thead><tr><th>Banda</th><th>Botín</th><th>Alumnos</th><th>Ajustar dinero</th></tr></thead><tbody>
     ${bands.map((b) => { const ms = Object.values(b.members || {}).filter(active); return `<tr><td><form class="row" data-name="${b.id}" style="gap:6px"><span class="dot" style="--bc:${b.color}"></span><input class="inp" id="nm-${b.id}" style="width:14em;font-size:14px;padding:6px" maxlength="32" value="${esc(b.name)}" aria-label="Nombre de la banda ${esc(bandInfo(b.id).name)}"><button class="btn" type="button" data-dice="${b.id}" title="Nombre aleatorio" aria-label="Nombre aleatorio">🎲</button><button class="btn">Guardar</button></form><small style="color:var(--muted)">color ${esc(bandInfo(b.id).name).toLowerCase()} · grupo de <select data-size="${b.id}" aria-label="Tamaño del grupo ${esc(b.name)}" style="background:var(--bg);color:var(--fg);border:1px solid var(--line)"><option${b.size === 4 ? " selected" : ""}>4</option><option${b.size === 5 ? " selected" : ""}>5</option></select>${g.phase === 0 ? " (se fija solo al empezar)" : ""}</small></td><td>${eu(Math.max(0, b.botin))}</td><td>${ms.length ? ms.map((m) => avName(m, 22)).join("") : '<span style="color:var(--muted)">nadie aún</span>'}</td>

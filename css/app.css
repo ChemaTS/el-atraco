@@ -53,3 +53,14 @@ body.proj .wrap{max-width:none;padding:28px 40px}
 .pjband .avs{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .role[disabled]{opacity:.55;cursor:not-allowed}
 .role.mine{border-color:var(--ok)}
+
+/* recuento */
+.rchart{width:100%;height:auto;background:var(--panel2);border:1px solid var(--line);border-radius:8px}
+.rline{stroke-dasharray:3000;stroke-dashoffset:3000;animation:rdraw 3s ease-out forwards}@keyframes rdraw{to{stroke-dashoffset:0}}
+.rdot{opacity:0;animation:rfade .4s ease-out forwards}@keyframes rfade{to{opacity:1}}
+.rrank{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.rrank li{display:flex;gap:14px;align-items:center;border:1px solid var(--line);border-left:8px solid var(--bc);border-radius:6px;padding:10px 14px;background:var(--panel2);font-size:20px}
+.rrank li b{flex:1}.rrank li em{font:700 20px var(--f-mono);font-style:normal}
+.rgrid{display:grid;grid-template-columns:2fr 1fr;gap:18px;align-items:start}
+@media (max-width:900px){.rgrid{grid-template-columns:1fr}}
+.tw{overflow-x:auto}
