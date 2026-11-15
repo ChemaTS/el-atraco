@@ -1,0 +1,44 @@
+/* ===== Añadidos de la app sincronizada (sobre proto.css) ===== */
+.nav{display:flex;gap:8px;flex-wrap:wrap}
+.nav a{font:600 13px var(--f-body);color:var(--muted);text-decoration:none;padding:8px 12px;border:1px solid transparent;border-radius:4px}
+.nav a.on,.nav a:hover{color:var(--amber);border-color:var(--amber)}
+.err{border:1px solid var(--red2);background:#2a0d0c;color:#ffd2cc;border-radius:6px;padding:12px 14px;margin:0 0 16px;font:13px var(--f-mono);white-space:pre-wrap;word-break:break-word}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.inp{font:600 18px var(--f-mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:10px 12px;letter-spacing:.08em}
+.inp.code{text-transform:uppercase;width:12ch}
+.hcard{position:relative;border-radius:8px;overflow:hidden;margin:0 0 18px;border:1px solid var(--line);background:#000 center/cover no-repeat;min-height:150px;display:flex;align-items:flex-end}
+.hcard .t{padding:18px 22px}.hcard small{font:600 12px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+.hcard h1{margin:4px 0 0;font-family:var(--f-display);font-size:40px;letter-spacing:.04em;line-height:1}
+.bandpick{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.bandpick button{background:var(--panel2);border:2px solid var(--bc);color:var(--fg);border-radius:6px;padding:16px;font:600 18px var(--f-body);cursor:pointer;text-align:left}
+.bandpick button small{display:block;font:12px var(--f-mono);color:var(--muted);margin-top:4px}
+.bandpick button:hover{background:color-mix(in srgb,var(--bc) 18%,var(--panel2))}
+.chk{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:8px 12px;cursor:pointer}
+.chk input{accent-color:var(--amber)}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+.tbl th{font:600 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--bc);margin-right:6px}
+.phases{display:grid;gap:6px}
+.ph{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:8px 10px;background:var(--panel2)}
+.ph.cur{border-color:var(--amber);box-shadow:0 0 0 2px color-mix(in srgb,var(--amber) 30%,transparent)}
+.ph b{font:600 12px var(--f-mono);color:var(--muted);width:7.5em}
+.ph span{flex:1}
+.stage{font:700 12px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border-radius:3px;background:var(--panel2);border:1px solid var(--line)}
+.stage.play{color:var(--ok);border-color:var(--ok)}.stage.video{color:var(--blue);border-color:var(--blue)}.stage.paused{color:var(--amber);border-color:var(--amber)}.stage.over{color:var(--red2);border-color:var(--red2)}
+.timer{font:700 64px var(--f-mono);letter-spacing:.04em;line-height:1}
+.timer.low{color:var(--red2)}
+.watch{text-align:center;padding:60px 20px}.watch b{font-family:var(--f-display);font-size:44px;display:block;letter-spacing:.05em}
+/* proyector */
+body.proj .top{display:none}
+body.proj .wrap{max-width:none;padding:28px 40px}
+.pj{display:grid;gap:24px}
+.pj .hcard{min-height:260px}.pj .hcard h1{font-size:72px}
+.pjrow{display:flex;justify-content:space-between;align-items:center;gap:20px}
+.pjboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.pjband{border:2px solid var(--line);border-left:10px solid var(--bc);border-radius:8px;padding:16px 18px;background:var(--panel2)}
+.pjband b{font-size:26px;display:block}.pjband span{font:600 22px var(--f-mono);color:var(--fg)}.pjband small{display:block;color:var(--muted);font:13px var(--f-mono);margin-top:4px}
+.vidwrap{position:fixed;inset:0;background:#000;z-index:50;display:flex;align-items:center;justify-content:center}
+.vidwrap video{width:100vw;height:100vh;object-fit:contain;background:#000}
+.gate{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center}
+.gate button{font:700 28px var(--f-body);padding:24px 40px}
+.codebig{font:700 44px var(--f-mono);letter-spacing:.2em;color:var(--amber)}
