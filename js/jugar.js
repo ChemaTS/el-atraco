@@ -30,15 +30,24 @@ function askCode(msg) {
   };
 }
 
-async function pickBand(g) {
-  const names = {};
-  await Promise.all(g.bands.map(async (id) => { const b = await DB.get(bpath(g.code, id)).catch(() => null); names[id] = b?.name || bandInfo(id).name; }));
-  app.innerHTML = `<p><button class="btn" type="button" id="backc">← Cambiar código</button></p><h1>¿De qué banda eres?</h1><div class="bandpick">${g.bands.map((id) => { const b = bandInfo(id); return `<button type="button" data-b="${id}" style="--bc:${b.color}">${esc(names[id])}<small>banda ${esc(b.name).toLowerCase()}</small></button>`; }).join("")}</div>
-  <form id="jn" class="panel" hidden style="margin-top:16px"><h3>Tu nombre</h3><div class="row"><input class="inp" maxlength="20" placeholder="Nombre" aria-label="Tu nombre" required><button class="btn red">Unirme</button></div></form>`;
-  $("#backc").onclick = () => askCode();
-  let band = null;
-  app.querySelectorAll("[data-b]").forEach((bt) => bt.onclick = () => { band = bt.dataset.b; app.querySelectorAll("[data-b]").forEach((x) => x.style.outline = x === bt ? "3px solid #fff" : ""); $("#jn").hidden = false; $("#jn input").focus(); });
-  $("#jn").onsubmit = (e) => { e.preventDefault(); const name = $("#jn input").value.trim(); if (!name || !band) return; me = { code: g.code, band, name }; ME.set(me); join(me); };
+function pickBand(g) {
+  stop();
+  app.innerHTML = `<p><button class="btn" type="button" id="backc">← Cambiar código</button></p><h1>¿De qué banda eres?</h1><div class="bandpick" id="bp"></div>
+  <form id="jn" class="panel" hidden style="margin-top:16px"><h3>Tu nombre</h3><div class="row"><input class="inp" maxlength="28" placeholder="Nombre y apellido" aria-label="Tu nombre" required style="min-width:min(100%,22em)"><button class="btn red">Unirme</button></div><p id="jnw" class="fb warn" hidden></p></form>`;
+  $("#backc").onclick = () => { stop(); askCode(); };
+  let band = null, BD = {};
+  const paint = () => {
+    $("#bp").innerHTML = g.bands.map((id) => { const b = bandInfo(id), d = BD[id] || {}, ms = Object.values(d.members || {}).filter(Boolean).map((m) => m.name);
+      return `<button type="button" data-b="${id}" style="--bc:${b.color}${band === id ? ";outline:3px solid #fff" : ""}">${esc(d.name || b.name)}<small>banda ${esc(b.name).toLowerCase()} · ${ms.length} dentro</small>${ms.length ? `<small style="color:var(--fg)">${ms.map(esc).join(", ")}</small>` : ""}</button>`; }).join("");
+  };
+  unsub.push(DB.onCol(`games/${g.code}/bands`, (all) => { BD = all || {}; paint(); }));
+  $("#bp").onclick = (e) => { const bt = e.target.closest("[data-b]"); if (!bt) return; band = bt.dataset.b; paint(); $("#jn").hidden = false; $("#jn input").focus(); };
+  $("#jn").onsubmit = (e) => {
+    e.preventDefault(); const name = $("#jn input").value.trim().replace(/\s+/g, " "); if (!name || !band) return;
+    const taken = Object.values(BD[band]?.members || {}).filter(Boolean).some((m) => m.name.toLowerCase() === name.toLowerCase());
+    if (taken && !$("#jnw").dataset.ok) { $("#jnw").hidden = false; $("#jnw").dataset.ok = 1; $("#jnw").textContent = "Ya hay alguien con ese nombre en esta banda. Añade tu apellido, o pulsa Unirme otra vez si eres tú desde otro ordenador."; return; }
+    stop(); me = { code: g.code, band, name }; ME.set(me); join(me);
+  };
 }
 
 async function join(m) {
