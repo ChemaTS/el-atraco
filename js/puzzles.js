@@ -9,6 +9,7 @@
 import { DB } from "./db.js";
 import { MONEY } from "./config.js";
 import { esc, eu, T, gpath, bpath, addMoney, remaining, SEAT } from "./core.js";
+import { avName } from "./avatars.js";
 
 const pzpath = (code, band, pid) => `games/${code}/bands/${band}/pz/${pid}`;
 const norm = (v) => String(v).normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -270,12 +271,13 @@ function roleList() {
 const roleName = (rid) => rid.split("+").map((r) => PZ[X.pid].roles[r]?.name || r).join(" + ");
 function head() {
   const a = Z().alarms || 0; let al = `<div class="alarm${a >= 4 ? " hot" : ""}"><small>ALARMA</small>`; for (let i = 0; i < 5; i++) al += `<i class="${i < a ? "on" : ""}"></i>`; al += "</div>";
-  return `<div class="phead" style="margin:0 0 10px"><div>${X.role ? `<span class="tag">${esc(roleName(X.role))}</span>` : ""}${solved() ? ' <span class="tag" style="color:var(--ok);border-color:var(--ok)">resuelto</span>' : ""}${guided() && !solved() ? ' <span class="tag" style="color:var(--amber);border-color:var(--amber)">modo guiado</span>' : ""}</div><div class="meters">${al}${X.role ? '<button class="btn" data-act="roles" type="button">Cambiar de rol</button>' : ""}</div></div>`;
+  return `<div class="phead" style="margin:0 0 10px"><div>${X.role ? `<span class="tag">${esc(roleName(X.role))}</span>` : ""}${solved() ? ' <span class="tag" style="color:var(--ok);border-color:var(--ok)">resuelto</span>' : ""}${guided() && !solved() ? ' <span class="tag" style="color:var(--amber);border-color:var(--amber)">modo guiado</span>' : ""}</div><div class="meters">${al}</div></div>`;
 }
 function picker() {
-  const p = PZ[X.pid], taken = {};
-  Object.entries(X.B.members || {}).forEach(([seat, m]) => { if (m && m.role?.pid === X.pid && seat !== SEAT) (taken[m.role.r] = taken[m.role.r] || []).push(m.name); });
-  return head() + `<p class="brief">${p.brief}</p><h3>Elige tu rol</h3><div class="roles">${roleList().map((r) => `<button class="role" type="button" data-role="${r.id}"><b>${r.parts.map((x) => esc(p.roles[x].name)).join(" + ")}${r.parts.some((x) => p.roles[x].lockRole) ? " 🔒" : ""}</b><small>${r.parts.map((x) => esc(p.roles[x].short)).join(" ")}</small>${taken[r.id] ? `<small style="color:var(--amber)">Lo tiene: ${taken[r.id].map(esc).join(", ")}</small>` : ""}</button>`).join("")}</div><p class="lead" style="margin-top:12px;font-size:14px">Grupo de ${X.B.size || 5}${(X.B.size || 5) === 4 ? ": dos roles van juntos en una pantalla" : ""}.</p>`;
+  const p = PZ[X.pid], claim = Z().claim || {};
+  const btn = (r) => { const c = claim[r.id], mine = c && c.seat === SEAT, taken = c && !mine;
+    return `<button class="role${mine ? " mine" : ""}" type="button" data-role="${r.id}"${taken || off() ? " disabled" : ""}><b>${r.parts.map((x) => esc(p.roles[x].name)).join(" + ")}${r.parts.some((x) => p.roles[x].lockRole) ? " 🔒" : ""}</b><small>${r.parts.map((x) => esc(p.roles[x].short)).join(" ")}</small>${taken ? `<small style="color:var(--amber)">${avName(c, 20)}</small>` : ""}</button>`; };
+  return head() + `<p class="brief">${p.brief}</p><h3>Elige tu rol</h3><p class="lead" style="margin:0 0 10px;font-size:14px">Cada rol es de una sola persona y, una vez elegido, no se cambia. ${(X.B.size || 5) === 4 ? "Sois 4: dos roles van juntos en una pantalla." : ""}</p><div class="roles">${roleList().map(btn).join("")}</div><p class="fb" id="fb-role" role="status"></p>`;
 }
 function screen() {
   const p = PZ[X.pid], parts = X.role.split("+").filter((r) => p.roles[r]), multi = parts.length > 1;
@@ -288,8 +290,10 @@ function screen() {
   h += `<div class="hints"><div class="lock"><button class="btn" data-act="hint" type="button"${used >= all.length || off() ? " disabled" : ""}>${used >= all.length ? "No quedan pistas" : "Pedir pista (−100.000 €)"}</button></div>${all.slice(0, used).map((t, i) => `<div class="hint">Pista ${i + 1}: ${t}</div>`).join("")}</div>`;
   return h + "</div>";
 }
+const myRole = () => (Object.entries(Z().claim || {}).find(([, c]) => c && c.seat === SEAT) || [null])[0];
 function draw() {
   if (!X || !X.Z) return;
+  X.role = myRole();
   const focus = document.activeElement, fid = focus && X.root.contains(focus) ? (focus.id || focus.dataset.ph) : null, fval = focus?.value;
   X.root.innerHTML = X.role ? screen() : picker();
   Object.entries(X.fb).forEach(([id, v]) => { const el = X.root.querySelector("#" + id); if (el) { el.className = "fb " + v.cls; el.textContent = v.txt; } });
@@ -302,7 +306,10 @@ function draw() {
 function onClick(e) {
   const t = e.target.closest("[data-act],[data-role],[data-kc],[data-bin],[data-pw],[data-psel],[data-pmode],[data-ptpl],[data-pdemo]"); if (!t || !X) return;
   const D = t.dataset;
-  if (D.role) { X.role = D.role; sessionStorage.setItem(`role:${X.code}:${X.pid}`, X.role); DB.update(bpath(X.code, X.band), { ["members." + SEAT + ".role"]: { pid: X.pid, r: X.role } }).catch(console.error); draw(); window.scrollTo(0, 0); return; }
+  if (D.role) {
+    const c = (Z().claim || {})[D.role]; if (c && c.seat !== SEAT) return say("fb-role", "warn", "Ese rol ya lo tiene otra persona.");
+    if (myRole()) return;
+    upd({ ["claim." + D.role]: { seat: SEAT, name: X.me?.name || "?", av: X.me?.av ?? 0, at: Date.now() } }); window.scrollTo(0, 0); return; }
   if (D.pdemo) { X.ui.demo = D.pdemo; return draw(); }
   if (D.pmode) { X.ui.mode = D.pmode; return draw(); }
   if (D.ptpl) { X.ui.tpl = D.ptpl; return draw(); }
@@ -314,7 +321,6 @@ function onClick(e) {
     X.ksel = X.ksel === id ? null : id; return draw(); }
   if (D.bin) { if (X.ksel != null) { const id = X.ksel; X.ksel = null; commit((s) => { s.k[id] = D.bin; }); } return; }
   const a = D.act;
-  if (a === "roles") { X.role = null; sessionStorage.removeItem(`role:${X.code}:${X.pid}`); return draw(); }
   if (a === "hint") { if (off()) return; upd({ ["hints." + X.role]: DB.inc(1), nHint: DB.inc(1) }); money(MONEY.hint, "pista"); return; }
   if (a === "kfilter") return commit((s) => { s.kfilter = !s.kfilter; });
   if (a === "oshot") {
@@ -351,11 +357,11 @@ function onDragLeave(e) { const b = e.target.closest("[data-bin]"); if (b) b.cla
 function onDrop(e) { const b = e.target.closest("[data-bin]"); if (!b) return; e.preventDefault(); const id = +(e.dataTransfer.getData("text/plain") || dragId); if (id) { X.ksel = null; commit((s) => { s.k[id] = b.dataset.bin; }); } }
 
 let unsub = null, lockTimer = null;
-export function mountPuzzle(root, { code, band, pid, G, B }) {
+export function mountPuzzle(root, { code, band, pid, G, B, me }) {
   unmountPuzzle();
-  X = { root, code, band, pid, G, B, Z: null, st: null, role: sessionStorage.getItem(`role:${code}:${pid}`), ksel: null, fb: {}, ui: { sel: 0, mode: "mark", tpl: "comp", anchor: null, demo: null } };
+  X = { root, code, band, pid, G, B, Z: null, st: null, me, role: null, ksel: null, fb: {}, ui: { sel: 0, mode: "mark", tpl: "comp", anchor: null, demo: null } };
   const path = pzpath(code, band, pid);
-  DB.get(path).then((z) => { if (!z) return DB.set(path, { st: PZ[pid].init(), alarms: 0, nAl: 0, nHint: 0, err: 0, hints: {}, solved: false, blk: false, guided: false }); }).catch(console.error);
+  DB.get(path).then((z) => { if (!z) return DB.set(path, { st: PZ[pid].init(), alarms: 0, nAl: 0, nHint: 0, err: 0, hints: {}, claim: {}, solved: false, blk: false, guided: false }); }).catch(console.error);
   unsub = DB.onDoc(path, (z) => { if (!z || !X) return; X.Z = z; X.st = clone(z.st || PZ[pid].init()); draw(); });
   ["click", "change", "submit", "dragstart", "dragover", "dragleave", "drop"].forEach((ev) => root.addEventListener(ev, H[ev]));
   lockTimer = setInterval(() => { if (X && X.Z && X.Z.lockUntil && Math.abs(X.Z.lockUntil - Date.now()) < 600) draw(); }, 500);

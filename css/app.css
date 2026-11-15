@@ -42,3 +42,14 @@ body.proj .wrap{max-width:none;padding:28px 40px}
 .gate{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center}
 .gate button{font:700 28px var(--f-body);padding:24px 40px}
 .codebig{font:700 44px var(--f-mono);letter-spacing:.2em;color:var(--amber)}
+
+/* avatares */
+.av{flex:none;display:inline-block;vertical-align:middle}
+.avn{display:inline-flex;align-items:center;gap:6px;margin:2px 10px 2px 0;white-space:nowrap}
+.avgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin:6px 0 12px}
+.avgrid button{background:var(--panel2);border:2px solid var(--line);border-radius:10px;padding:8px 4px 6px;cursor:pointer;color:var(--muted);font:600 11px var(--f-body);display:grid;justify-items:center;gap:4px;transition:transform .12s}
+.avgrid button:hover{transform:translateY(-2px);border-color:var(--amber)}
+.avgrid button.on{border-color:var(--amber);background:#2a1d0c;color:var(--fg);box-shadow:0 0 0 3px color-mix(in srgb,var(--amber) 30%,transparent)}
+.pjband .avs{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.role[disabled]{opacity:.55;cursor:not-allowed}
+.role.mine{border-color:var(--ok)}

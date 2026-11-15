@@ -4,6 +4,7 @@
 import { DB } from "./db.js";
 import { $, esc, eu, T, bandInfo, phase, gpath, bpath, remaining, fmt, header, SEAT, ME, showErr } from "./core.js";
 import { PHASES } from "./config.js";
+import { avatarSVG, avName, AVATARS, AV_NAMES } from "./avatars.js";
 import { mountPuzzle, updatePuzzle, unmountPuzzle, isPuzzle } from "./puzzles.js";
 
 let app, unsub = [], tick = null, G = null, B = null, me = null;
@@ -21,7 +22,7 @@ function askCode(msg) {
   app.innerHTML = `<h1>Entrar en la partida</h1>${msg ? `<div class="err">${esc(msg)}</div>` : ""}
   ${(() => { const l = ME.last(); return l && !msg ? T("¿Eres tú?", `<p style="margin:0 0 10px">Este ordenador estaba en la partida <b>${esc(l.code)}</b> como <b>${esc(l.name)}</b> (banda ${esc(bandInfo(l.band).name)}).</p><button class="btn red" id="back" type="button">Volver como ${esc(l.name)}</button>`) : ""; })()}
   ${T("Código de partida", `<form id="jc" class="row"><input class="inp code" maxlength="5" placeholder="CÓDIGO" aria-label="Código de partida" autofocus><button class="btn red">Entrar</button></form><p style="margin:10px 0 0;color:var(--muted)">Lo tienes en el proyector.</p>`)}`;
-  const bk = $("#back"); if (bk) bk.onclick = () => { me = ME.last(); ME.set(me); join(me); };
+  const bk = $("#back"); if (bk) bk.onclick = () => { const l = ME.last(); if (l.seat) sessionStorage.setItem("seat", l.seat); sessionStorage.setItem("me", JSON.stringify(l)); location.reload(); };
   $("#jc").onsubmit = async (e) => {
     e.preventDefault(); const code = $("#jc input").value.trim().toUpperCase(); if (!code) return;
     const g = await DB.get(gpath(code)).catch(showErr);
@@ -33,12 +34,15 @@ function askCode(msg) {
 function pickBand(g) {
   stop();
   app.innerHTML = `<p><button class="btn" type="button" id="backc">← Cambiar código</button></p><h1>¿De qué banda eres?</h1><div class="bandpick" id="bp"></div>
-  <form id="jn" class="panel" hidden style="margin-top:16px"><h3>Tu nombre</h3><div class="row"><input class="inp" maxlength="28" placeholder="Nombre y apellido" aria-label="Tu nombre" required style="min-width:min(100%,22em)"><button class="btn red">Unirme</button></div><p id="jnw" class="fb warn" hidden></p></form>`;
+  <form id="jn" class="panel" hidden style="margin-top:16px"><h3>Elige tu avatar</h3><div class="avgrid" id="avg"></div><h3>Tu nombre</h3><div class="row"><input class="inp" maxlength="28" placeholder="Nombre y apellido" aria-label="Tu nombre" required style="min-width:min(100%,22em)"><button class="btn red">Unirme</button></div><p id="jnw" class="fb warn" hidden></p></form>`;
   $("#backc").onclick = () => { stop(); askCode(); };
-  let band = null, BD = {};
+  let band = null, BD = {}, av = Math.floor(Math.random() * AVATARS.length);
+  const paintAv = () => { $("#avg").innerHTML = AVATARS.map((_, i) => `<button type="button" data-av="${i}" class="${i === av ? "on" : ""}" aria-label="${AV_NAMES[i]}" aria-pressed="${i === av}">${avatarSVG(i, 56)}<span>${AV_NAMES[i]}</span></button>`).join(""); };
+  paintAv();
+  $("#avg").onclick = (e) => { const b = e.target.closest("[data-av]"); if (b) { av = +b.dataset.av; paintAv(); } };
   const paint = () => {
-    $("#bp").innerHTML = g.bands.map((id) => { const b = bandInfo(id), d = BD[id] || {}, ms = Object.values(d.members || {}).filter(Boolean).map((m) => m.name);
-      return `<button type="button" data-b="${id}" style="--bc:${b.color}${band === id ? ";outline:3px solid #fff" : ""}">${esc(d.name || b.name)}<small>banda ${esc(b.name).toLowerCase()} · ${ms.length} dentro</small>${ms.length ? `<small style="color:var(--fg)">${ms.map(esc).join(", ")}</small>` : ""}</button>`; }).join("");
+    $("#bp").innerHTML = g.bands.map((id) => { const b = bandInfo(id), d = BD[id] || {}, ms = Object.values(d.members || {}).filter(Boolean);
+      return `<button type="button" data-b="${id}" style="--bc:${b.color}${band === id ? ";outline:3px solid #fff" : ""}">${esc(d.name || b.name)}<small>banda ${esc(b.name).toLowerCase()} · ${ms.length} dentro</small>${ms.length ? `<small style="color:var(--fg)">${ms.map((m) => avName(m, 20)).join("")}</small>` : ""}</button>`; }).join("");
   };
   unsub.push(DB.onCol(`games/${g.code}/bands`, (all) => { BD = all || {}; paint(); }));
   $("#bp").onclick = (e) => { const bt = e.target.closest("[data-b]"); if (!bt) return; band = bt.dataset.b; paint(); $("#jn").hidden = false; $("#jn input").focus(); };
@@ -46,7 +50,7 @@ function pickBand(g) {
     e.preventDefault(); const name = $("#jn input").value.trim().replace(/\s+/g, " "); if (!name || !band) return;
     const taken = Object.values(BD[band]?.members || {}).filter(Boolean).some((m) => m.name.toLowerCase() === name.toLowerCase());
     if (taken && !$("#jnw").dataset.ok) { $("#jnw").hidden = false; $("#jnw").dataset.ok = 1; $("#jnw").textContent = "Ya hay alguien con ese nombre en esta banda. Añade tu apellido, o pulsa Unirme otra vez si eres tú desde otro ordenador."; return; }
-    stop(); me = { code: g.code, band, name }; ME.set(me); join(me);
+    stop(); me = { code: g.code, band, name, av, seat: SEAT }; ME.set(me); join(me);
   };
 }
 
@@ -54,7 +58,7 @@ async function join(m) {
   try {
     const g = await DB.get(gpath(m.code));
     if (!g || !g.bands.includes(m.band)) { ME.clear(); return askCode("Esa partida ya no existe."); }
-    await DB.update(bpath(m.code, m.band), { ["members." + SEAT]: { name: m.name, at: Date.now() } });
+    await DB.update(bpath(m.code, m.band), { ["members." + SEAT]: { name: m.name, av: m.av ?? 0, at: Date.now() } });
   } catch (e) { return showErr(e); }
   unsub.push(DB.onDoc(gpath(m.code), (g) => { G = g; draw(); }));
   unsub.push(DB.onDoc(bpath(m.code, m.band), (b) => { B = b; draw(); }));
@@ -66,7 +70,7 @@ function draw() {
   if (!G || !B) return;
   const p = phase(G.phase), mem = Object.entries(B.members || {}).filter(([, x]) => x);
   if (!$("#jtop")) { app.innerHTML = '<div id="jtop"></div><div id="jbody"></div>'; mode = null; }
-  $("#jtop").innerHTML = `<div class="pjrow" style="margin-bottom:14px"><div><span class="dot" style="--bc:${B.color}"></span><b>${esc(B.name)}</b> · ${esc(me.name)} <span style="color:var(--muted)">· botín ${eu(Math.max(0, B.botin))}</span></div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar de banda</button>' : ""}<button class="btn" id="out" type="button">Salir</button></div></div>`;
+  $("#jtop").innerHTML = `<div class="pjrow" style="margin-bottom:14px"><div><span class="dot" style="--bc:${B.color}"></span><b>${esc(B.name)}</b> · ${avName(me, 26)} <span style="color:var(--muted)">· botín ${eu(Math.max(0, B.botin))}</span></div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar de banda</button>' : ""}<button class="btn" id="out" type="button">Salir</button></div></div>`;
   $("#out").onclick = async () => { await quit(); askCode(); };
   const cb = $("#chb"); if (cb) cb.onclick = async () => { const g = G; await quit(); pickBand(g); };
   const isPz = isPuzzle(p.key) && (G.stage === "play" || G.stage === "paused");
@@ -74,9 +78,9 @@ function draw() {
   if (m === mode) { if (isPz) updatePuzzle(G, B); return; }
   mode = m; unmountPuzzle();
   const body = $("#jbody");
-  if (isPz) { body.innerHTML = header(p) + '<div id="pzroot"></div>'; mountPuzzle($("#pzroot"), { code: me.code, band: me.band, pid: p.key, G, B }); return; }
+  if (isPz) { body.innerHTML = header(p) + '<div id="pzroot"></div>'; mountPuzzle($("#pzroot"), { code: me.code, band: me.band, pid: p.key, G, B, me }); return; }
   if (G.stage === "video") body.innerHTML = `<div class="watch"><b>Mirad al proyector</b><p class="lead">La Directora tiene algo que contaros.</p></div>`;
-  else if (G.phase === 0) body.innerHTML = header(p) + T("Tu banda", `<p style="margin:0">Conectados (${mem.length}): ${mem.map(([, x]) => esc(x.name)).join(", ")}</p><p style="margin:8px 0 0;color:var(--muted)">${mem.length >= 5 ? "Grupo de 5: cada uno tendrá su rol." : "Si empezáis siendo 4 o menos, dos roles irán juntos en una pantalla."}</p>`)
+  else if (G.phase === 0) body.innerHTML = header(p) + T("Tu banda", `<p style="margin:0">Conectados (${mem.length}):</p><div style="margin-top:6px">${mem.map(([, x]) => avName(x, 34)).join("")}</div><p style="margin:8px 0 0;color:var(--muted)">${mem.length >= 5 ? "Grupo de 5: cada uno tendrá su rol." : "Si empezáis siendo 4 o menos, dos roles irán juntos en una pantalla."}</p>`)
       + `<div class="watch"><b>Esperando al resto…</b><p class="lead">La partida empieza cuando el profe lance la intro.</p></div>`;
   else if (G.stage === "ready") body.innerHTML = header(p) + `<div class="watch"><b>Preparados</b><p class="lead">Atentos al proyector.</p></div>`;
   else if (G.stage === "paused") body.innerHTML = header(p) + `<div class="watch"><b>Pausa</b></div>`;
