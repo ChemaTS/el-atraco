@@ -19,7 +19,7 @@ function route() {
     .map(([k, t]) => `<a href="#/${k}"${k === name ? ' class="on"' : ""}>${t}</a>`).join("");
   current = { jugar: Jugar, proyector: Proyector, profe: Profe }[name] || null;
   if (current) current.enter(app, args);
-  else app.innerHTML = `<h1>El Atraco</h1><p class="lead">Escape room de fuentes multimedia. Elige pantalla.</p>
+  else app.innerHTML = `<div class="hero"><div><h1>EL ATRACO</h1><p>Esta noche se roba el máster del estreno. Texto, sonido, imagen y vídeo: cada candado se abre sabiendo.</p></div></div>
     <div class="menu">
       <a class="mcard" href="#/jugar"><span class="n">1</span><b>Jugar</b><small>Cada alumno en su ordenador</small></a>
       <a class="mcard" href="#/proyector"><span class="n">2</span><b>Proyector</b><small>Pantalla grande del aula</small></a>

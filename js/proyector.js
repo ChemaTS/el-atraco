@@ -7,6 +7,7 @@ import { avatarSVG } from "./avatars.js";
 import * as LOC from "./loc.js";
 import * as FUR from "./fur.js";
 import * as REC from "./recuento.js";
+import { beep } from "./sfx.js";
 import { active, $, esc, eu, phase, gpath, remaining, fmt, startPlay, header } from "./core.js";
 
 let app, unsub = [], tick = null, G = null, BS = {}, armed = false, playingKey = null;
@@ -21,7 +22,7 @@ export function enter(el, args) {
     return;
   }
   unsub.push(DB.onDoc(gpath(code), (g) => { G = g; draw(); }));
-  unsub.push(DB.onCol(`games/${code}/bands`, (b) => { BS = b || {}; drawBoard(); }));
+  unsub.push(DB.onCol(`games/${code}/bands`, (b) => { BS = b || {}; events(); drawBoard(); }));
   tick = setInterval(() => {
     const el = $("#pjt"); if (!el || !G) return;
     const r = remaining(G); el.textContent = r == null ? "" : fmt(r); el.classList.toggle("low", r != null && r < 60000);
@@ -29,7 +30,7 @@ export function enter(el, args) {
     if (isFur() && $("#board")) FUR.projector($("#board"), G, BS);
   }, 200);
 }
-export function leave() { stop(); document.querySelector(".vidwrap")?.remove(); document.querySelector(".gate")?.remove(); }
+export function leave() { stop(); music(false); document.querySelector(".feed")?.remove(); document.querySelector(".mus")?.remove(); document.querySelector(".vidwrap")?.remove(); document.querySelector(".gate")?.remove(); }
 
 function gate() {
   if (armed || document.querySelector(".gate")) return;
@@ -39,6 +40,28 @@ function gate() {
   document.body.appendChild(d);
 }
 
+/* avisos en pantalla cuando una banda abre un candado o se bloquea */
+let seen = null;
+const NOTE = { "puzzle resuelto": ["ha abierto el candado", true], "primera banda": ["¡ha sido la primera! +100.000 €", true], bloqueo: ["ha bloqueado el sistema", false] };
+function events() {
+  const now = {}; Object.values(BS).forEach((b) => (b.ledger || []).forEach((e) => (now[b.id + e.t + e.r] = [b, e])));
+  if (!seen) { seen = new Set(Object.keys(now)); return; }
+  Object.entries(now).forEach(([k, [b, e]]) => {
+    if (seen.has(k)) return; seen.add(k);
+    const n = NOTE[e.why]; if (!n) return;
+    let f = document.querySelector(".feed"); if (!f) { f = document.createElement("div"); f.className = "feed"; document.body.appendChild(f); }
+    const d = document.createElement("div"); d.style.setProperty("--bc", b.color); d.innerHTML = `<b>${esc(b.name)}</b> ${n[0]}`; f.appendChild(d); setTimeout(() => d.remove(), 6200);
+    if (armed) n[1] ? [523, 659, 784].forEach((fq, i) => setTimeout(() => beep(fq, 0.25, 0.07, "triangle"), i * 110)) : beep(160, 0.5, 0.09, "sawtooth");
+  });
+}
+/* música de ambiente en el proyector (fases de puzzle y espera) */
+let mus = null, musOn = localStorage.getItem("musica") !== "no";
+function music(want) {
+  if (!mus) { mus = new Audio("media/audio/musica.mp3"); mus.loop = true; mus.volume = 0.18; }
+  if (want && musOn && armed) { if (mus.paused) mus.play().catch(() => { }); } else if (!mus.paused) mus.pause();
+  let b = document.querySelector(".mus"); if (!b) { b = document.createElement("button"); b.className = "btn mus"; b.type = "button"; b.onclick = () => { musOn = !musOn; localStorage.setItem("musica", musOn ? "si" : "no"); draw(); }; document.body.appendChild(b); }
+  b.textContent = musOn ? "♪ Música: sí" : "♪ Música: no";
+}
 function draw() {
   if (!G) { app.innerHTML = `<p class="lead">Esperando partida…</p>`; return; }
   gate();
@@ -49,6 +72,7 @@ function draw() {
       <div style="text-align:right"><div class="timer" id="pjt"></div><div style="font:700 28px var(--f-display);color:var(--amber)">${msg}</div></div></div>
     <div class="pjboard" id="board"></div></div>`;
   drawBoard(); video();
+  const k = phase(G.phase).key; music(G.stage !== "video" && !["loc", "fur", "final"].includes(k));
 }
 
 const isFinal = () => G && phase(G.phase).key === "final" && G.stage === "play";

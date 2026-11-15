@@ -11,7 +11,7 @@ import * as REC from "./recuento.js";
 import { mountPuzzle, updatePuzzle, unmountPuzzle, isPuzzle } from "./puzzles.js";
 
 let app, unsub = [], tick = null, G = null, B = null, me = null, BS = {};
-const stop = () => { unsub.forEach((f) => f()); unsub = []; clearInterval(tick); unmountPuzzle(); mode = null; };
+const stop = () => { unsub.forEach((f) => f()); unsub = []; clearInterval(tick); unmountPuzzle(); mode = null; lastBot = null; };
 
 export function enter(el) {
   app = el; stop(); G = null; B = null;
@@ -72,7 +72,12 @@ async function join(m) {
   tick = setInterval(() => { if (G && phase(G.phase).key === "loc") LOC.barTick(app, G); if (G && phase(G.phase).key === "fur" && G.stage === "play" && $("#fmain")) renderFur(); const el = $("#jt"); if (el && G) { const r = remaining(G); el.textContent = r == null ? "" : fmt(r); el.classList.toggle("low", r != null && r < 60000); } }, 150);
 }
 
-let mode = null;
+let mode = null, lastBot = null;
+function flyMoney(d) {
+  const el = $("#jloot"); if (!el || !d) return; const r = el.getBoundingClientRect(), f = document.createElement("div");
+  f.className = "mfly " + (d > 0 ? "up" : "down"); f.textContent = (d > 0 ? "+" : "−") + Math.abs(d).toLocaleString("es-ES") + " €";
+  f.style.left = r.left + "px"; f.style.top = r.top - 10 + "px"; document.body.appendChild(f); setTimeout(() => f.remove(), 1700);
+}
 function renderFur() {
   const k = "fur:" + FUR.studentKey(G, me);
   if (mode !== k) { mode = k; if (!$("#fmain")) $("#jbody").innerHTML = header(phase(G.phase)) + '<div id="fmain"></div><div id="fbd"></div>'; $("#fmain").innerHTML = FUR.student(G, BS, me); }
@@ -84,7 +89,8 @@ function draw() {
   if (!G || !B) return;
   const p = phase(G.phase), mem = Object.entries(B.members || {}).filter(([, x]) => active(x));
   if (!$("#jtop")) { app.innerHTML = '<div id="jtop"></div><div id="jbody"></div>'; mode = null; }
-  $("#jtop").innerHTML = `<div class="pjrow" style="margin-bottom:14px"><div><span class="dot" style="--bc:${B.color}"></span><b>${esc(B.name)}</b> · ${avName(me, 26)} <span style="color:var(--muted)">· botín ${eu(Math.max(0, B.botin))}</span></div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar de banda</button>' : ""}<button class="btn" id="out" type="button">Salir</button></div></div>`;
+  $("#jtop").innerHTML = `<div class="topbar" style="--bc:${B.color}"><div class="who">${avatarSVG(me.av ?? 0, 44)}<div><b>${esc(me.name)}</b><br><small style="color:var(--muted)">${esc(B.name)}</small></div></div><div class="loot" id="jloot" title="Botín de la banda">💰 ${eu(Math.max(0, B.botin))}</div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar de banda</button>' : ""}<button class="btn" id="out" type="button">Salir</button></div></div>`;
+  if (lastBot != null && B.botin !== lastBot) flyMoney(B.botin - lastBot); lastBot = B.botin;
   $("#out").onclick = async (e) => { const b = e.currentTarget; if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = "¿Salir? Pulsa otra vez"; setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = "Salir"; } }, 3000); return; } await quit(); askCode(); };
   const cb = $("#chb"); if (cb) cb.onclick = async () => { const g = G; await quit(); pickBand(g); };
   if (p.key === "loc" && G.stage === "play") {

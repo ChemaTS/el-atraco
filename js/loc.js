@@ -38,6 +38,51 @@ export const LQ = [
   { m: null, q: "MP4 y MXF son…", o: ["Contenedores", "Códecs", "Resoluciones", "Muestreos"] },
   { m: null, q: "H.264 es…", o: ["Un códec", "Un contenedor", "Un espacio de color", "Una resolución"] },
   { m: null, q: "¿Qué compresión pesa más, a igual calidad?", o: ["Intraframe", "Interframe (GOP)", "Las dos igual", "Ninguna, no comprimen"] },
+  // —— ampliación: tipografía ——
+  { m: "fkern", q: "¿Qué falla en esta palabra?", o: ["El kerning de un par de letras", "El tracking de toda la palabra", "El interlineado", "El cuerpo"] },
+  { m: "ftrack", q: "¿Qué se ha modificado en esta palabra?", o: ["El tracking (toda la palabra)", "El kerning de un par", "La familia", "El interlineado"] },
+  { m: null, q: "¿Qué familia tiene remates en los extremos de los trazos?", o: ["Romana (con serifa)", "Palo seco", "Monoespaciada", "Display"] },
+  { m: null, q: "Ajustar el espacio entre UN par concreto de letras se llama…", o: ["Kerning", "Tracking", "Interlineado", "Sangría"] },
+  { m: null, q: "Ajustar por igual el espacio de toda una palabra o línea se llama…", o: ["Tracking", "Kerning", "Interlineado", "Justificación"] },
+  { m: null, q: "La distancia entre las líneas de base de un párrafo se llama…", o: ["Interlineado", "Kerning", "Tracking", "Cuerpo"] },
+  { m: null, q: "Para texto corrido en pantalla se recomienda una letra…", o: ["De palo seco", "Display", "Manuscrita", "Gótica"] },
+  { m: null, q: "Un punto tipográfico equivale a…", o: ["1/72 de pulgada", "1/12 de pulgada", "1 milímetro", "1/6 de pulgada"] },
+  { m: null, q: "¿Cuántas picas son 36 puntos?", o: ["3", "6", "4", "12"] },
+  { m: null, q: "En una fuente monoespaciada…", o: ["Todas las letras ocupan el mismo ancho", "Solo hay mayúsculas", "No hay remates", "Cada letra tiene un color"] },
+  // —— sonido ——
+  { m: null, q: "Si duplicas la frecuencia de muestreo, la frecuencia más alta que puedes grabar…", o: ["Se duplica", "Se reduce a la mitad", "No cambia", "Se multiplica por cuatro"] },
+  { m: null, q: "¿Cuántos dB de rango dinámico aporta, aproximadamente, cada bit?", o: ["6 dB", "3 dB", "10 dB", "1 dB"] },
+  { m: null, q: "Rango dinámico aproximado de un audio de 24 bits:", o: ["144 dB", "96 dB", "48 dB", "192 dB"] },
+  { m: null, q: "Audio sin compresión que además guarda timecode (broadcast):", o: ["BWF", "MP3", "AAC", "FLAC"] },
+  { m: null, q: "FLAC es un formato de audio…", o: ["Comprimido sin pérdidas", "Comprimido con pérdidas", "Sin compresión", "De vídeo"] },
+  { m: null, q: "MP3 y AAC son formatos…", o: ["Con pérdidas", "Sin pérdidas", "Sin compresión", "De vídeo"] },
+  { m: null, q: "Un sistema de sonido 5.1 tiene…", o: ["5 altavoces y 1 subwoofer", "5 subwoofers y 1 altavoz", "6 altavoces iguales", "5 parejas estéreo"] },
+  { m: null, q: "El nivel digital máximo antes de saturar es…", o: ["0 dBFS", "−6 dBFS", "+6 dBFS", "−20 dBFS"] },
+  { m: null, q: "El oído humano percibe, aproximadamente, de…", o: ["20 Hz a 20 kHz", "2 Hz a 2 kHz", "200 Hz a 200 kHz", "20 kHz a 40 kHz"] },
+  // —— imagen ——
+  { m: null, q: "Modelo de color que se usa para imprimir:", o: ["CMYK", "RGB", "HEX", "Rec. 709"] },
+  { m: null, q: "Modelo de color que usan las pantallas:", o: ["RGB", "CMYK", "Pantone", "CMY"] },
+  { m: null, q: "Cian + magenta + amarillo al 100 % sobre papel dan, en teoría…", o: ["Negro", "Blanco", "Gris claro", "Rojo"] },
+  { m: null, q: "Luz roja + verde + azul al máximo dan…", o: ["Blanco", "Negro", "Gris", "Marrón"] },
+  { m: null, q: "¿Cuál de estos formatos NO admite transparencia?", o: ["JPG", "PNG", "GIF", "WebP"] },
+  { m: null, q: "JPG comprime la imagen…", o: ["Con pérdidas", "Sin pérdidas", "Sin comprimir", "Solo si es vectorial"] },
+  { m: null, q: "Una imagen vectorial, al ampliarla…", o: ["No pierde calidad", "Se pixela", "Pierde color", "Se convierte en JPG"] },
+  { m: null, q: "SVG es un formato de imagen…", o: ["Vectorial", "De mapa de bits", "De audio", "De vídeo"] },
+  { m: null, q: "00FF00 en HEX es…", o: ["Verde", "Rojo", "Azul", "Amarillo"] },
+  { m: null, q: "En RGB, el complementario del rojo es:", o: ["Cian", "Verde", "Azul", "Magenta"] },
+  { m: null, q: "Resolución habitual para imprimir con calidad:", o: ["300 ppp", "72 ppp", "30 ppp", "3 ppp"] },
+  { m: null, q: "Una imagen de 1920 px de ancho impresa a 300 ppp mide…", o: ["6,4 pulgadas", "19,2 pulgadas", "3 pulgadas", "64 pulgadas"] },
+  // —— vídeo ——
+  { m: null, q: "Cada campo de un vídeo entrelazado contiene…", o: ["Media imagen: solo las líneas pares o las impares", "Una imagen completa", "Dos imágenes", "Solo el color"] },
+  { m: null, q: "El submuestreo 4:4:4 significa que…", o: ["No se reduce el color", "El color se reduce a la mitad", "Solo hay luminancia", "Hay 4 canales de audio"] },
+  { m: null, q: "Un GOP es…", o: ["Un grupo de fotogramas comprimidos juntos", "Un contenedor de vídeo", "Un tipo de cable", "Un formato de audio"] },
+  { m: null, q: "La señal profesional SDI viaja por un cable…", o: ["Coaxial con conector BNC", "HDMI", "USB", "Jack"] },
+  { m: null, q: "Resolución Full HD:", o: ["1920 × 1080", "1280 × 720", "3840 × 2160", "720 × 576"] },
+  { m: null, q: "Resolución HD 720p:", o: ["1280 × 720", "1920 × 1080", "640 × 480", "2560 × 1440"] },
+  { m: null, q: "Resolución del vídeo SD en PAL:", o: ["720 × 576", "640 × 480", "1280 × 720", "1920 × 1080"] },
+  { m: null, q: "Con todo lo demás igual, más bitrate significa…", o: ["Más calidad y archivos más pesados", "Menos calidad", "Más fotogramas por segundo", "Menos color"] },
+  { m: null, q: "Contenedor estandarizado por la SMPTE para televisión:", o: ["MXF", "MP4", "MKV", "AVI"] },
+  { m: null, q: "Códec típico de las cámaras réflex y los móviles:", o: ["H.264", "DV", "ProRes", "Sin compresión"] },
 ];
 const HEXS = [["FF0000", "#ff0000"], ["00FF00", "#00ff00"], ["0000FF", "#0000ff"], ["FFFF00", "#ffff00"], ["00FFFF", "#00ffff"], ["FF00FF", "#ff00ff"]];
 const shuf = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -67,6 +112,9 @@ export function drawMedia(c, m, hex) {
   if (m === "imgcomb") { x.fillStyle = "#2a2a35"; x.fillRect(0, 0, W, H); for (let y = 40; y < 140; y += 2) { const off = (y / 2) % 2 ? 18 : 0; x.fillStyle = "#f2a93b"; x.fillRect(110 + off, y, 130, 1); } x.fillStyle = "#111"; x.beginPath(); x.arc(150, 142, 14, 0, 7); x.arc(215, 142, 14, 0, 7); x.fill(); }
   if (m === "imgpix") { const s = 12; for (let y = 0; y < H; y += s) for (let xx = 0; xx < W; xx += s) { const dx = xx + s / 2 - W / 2, dy = y + s / 2 - H / 2; x.fillStyle = dx * dx + dy * dy < 70 * 70 ? "#d7261e" : "#ece9e2"; x.fillRect(xx, y, s, s); } }
   if (m === "hex") { x.fillStyle = hex || "#000"; x.fillRect(0, 0, W, H); }
+  if (m === "fkern" || m === "ftrack") { x.fillStyle = "#ece9e2"; x.fillRect(0, 0, W, H); x.fillStyle = "#1d1a19"; x.font = '600 58px Arial,Helvetica,sans-serif'; x.textBaseline = "middle";
+    const word = m === "fkern" ? "AVIÓN" : "PLANO", gaps = m === "fkern" ? [34, 0, 0, 0] : [22, 22, 22, 22]; let px = 40;
+    [...word].forEach((ch, k) => { x.fillText(ch, px, H / 2); px += x.measureText(ch).width + (k < gaps.length ? gaps[k] : 0) - (m === "fkern" ? 2 : 0); }); x.textBaseline = "alphabetic"; return; }
   if (m[0] === "f") { x.fillStyle = "#ece9e2"; x.fillRect(0, 0, W, H); x.fillStyle = "#1d1a19"; x.textAlign = "center"; x.textBaseline = "middle"; x.font = m === "fserif" ? '64px Georgia,"Times New Roman",serif' : m === "fsans" ? "600 64px Arial,Helvetica,sans-serif" : '64px "Courier New",Courier,monospace'; x.fillText("Atraco", W / 2, H / 2); x.textAlign = "left"; x.textBaseline = "alphabetic"; }
   if (m === "vidfps") { const t0 = performance.now(); const f = () => { if (!c.isConnected) return; const t = (performance.now() - t0) / 1000; x.fillStyle = "#151212"; x.fillRect(0, 0, W, H); const p1 = (t * 120) % (W - 40), p2 = ((Math.floor(t * 4) / 4) * 120) % (W - 40); x.fillStyle = "#47c27f"; x.fillRect(p1, 40, 40, 30); x.fillStyle = "#d7261e"; x.fillRect(p2, 110, 40, 30); raf = requestAnimationFrame(f); }; f(); }
 }
