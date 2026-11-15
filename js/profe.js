@@ -30,13 +30,22 @@ function home() {
   ${T("Crear nueva partida", `<p style="margin:0 0 8px">Bandas participantes (4–6):</p>
     <div class="row" id="bsel">${BANDS.map((b, i) => `<label class="chk" style="border-color:${b.color}"><input type="checkbox" value="${b.id}"${i < 5 ? " checked" : ""}> <span style="color:${b.color};font-weight:600">${b.name}</span></label>`).join("")}</div>
     <p><label class="chk"><input type="checkbox" id="test"> Modo prueba (fases de 2 min, policía en 40–70 s)</label></p>
+    <div class="row" style="margin:0 0 14px">🤖 <span>Bandas bot (juegan solas, para probar):</span>
+      <select id="nbots" aria-label="Número de bandas bot" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);padding:6px"><option value="0">ninguna</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+      <span>nivel</span><select id="lbots" aria-label="Nivel de los bots" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);padding:6px">${Object.entries(BOTS.LEVELS).map(([k, v]) => `<option value="${k}"${k === "medio" ? " selected" : ""}>${v.label}</option>`).join("")}</select>
+      <span style="color:var(--muted);font-size:13px">Las últimas bandas marcadas serán bots.</span></div>
     <button class="btn red" id="new">Generar código y crear partida</button>`)}
   ${T("Abrir partida existente", `<form id="op" class="row"><input class="inp code" maxlength="5" placeholder="CÓDIGO" aria-label="Código de partida" value="${esc(last || "")}"><button class="btn">Abrir</button></form>`)}`;
   $("#new").onclick = async () => {
     const ids = [...document.querySelectorAll("#bsel input:checked")].map((i) => i.value);
     if (ids.length < 2) return showErr("Elige al menos 2 bandas.");
     $("#new").disabled = true;
-    try { const code = await createGame(ids, $("#test").checked); location.hash = "#/profe/" + code; } catch (e) { showErr(e); $("#new").disabled = false; }
+    const nb = Math.min(+$("#nbots").value, ids.length - 1), lvl = $("#lbots").value;
+    try {
+      const code = await createGame(ids, $("#test").checked);
+      if (nb > 0) { const g = await DB.get(gpath(code)), bs = {}; for (const id of ids) bs[id] = await DB.get(bpath(code, id)); await BOTS.addBots({ ...g, bands: ids.slice(-nb) }, bs, lvl); }
+      location.hash = "#/profe/" + code;
+    } catch (e) { showErr(e); $("#new").disabled = false; }
   };
   $("#op").onsubmit = (e) => { e.preventDefault(); const c = $("#op input").value.trim().toUpperCase(); if (c) location.hash = "#/profe/" + c; };
 }
