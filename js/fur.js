@@ -81,14 +81,15 @@ function scene(F, G, BS, now) {
   const van = `<g class="fvan ${res}" transform="translate(280,118)"><rect x="0" y="0" width="92" height="38" rx="5" fill="${col}"/><path d="M92 8h22l18 18v12H92z" fill="${col}"/><rect x="98" y="12" width="15" height="12" fill="#0d0b0b"/><path d="M132 30 L240 18 L240 44 Z" fill="#fff6c8" opacity="${dr.length ? ".18" : "0"}"/><circle cx="24" cy="42" r="10" fill="#0d0b0b" stroke="#777" stroke-width="3"/><circle cx="112" cy="42" r="10" fill="#0d0b0b" stroke="#777" stroke-width="3"/>${dr.length ? `<text x="46" y="25" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="13" font-weight="700" fill="#0d0b0b">${nf(F.bids[dr[0]].v)}</text>` : ""}</g>`;
   const pol = res === "crash" ? '<g class="fpol" transform="translate(470,128)"><rect x="0" y="0" width="100" height="30" rx="5" fill="#e9e6e1"/><rect x="18" y="-12" width="56" height="14" rx="3" fill="#e9e6e1"/><rect class="lr" x="30" y="-20" width="14" height="9" fill="#ff2a2a"/><rect class="lb" x="46" y="-20" width="14" height="9" fill="#2a6bff"/><text x="50" y="21" text-anchor="middle" font-family="IBM Plex Sans,Arial" font-size="11" font-weight="700" fill="#14213d">POLICÍA</text><circle cx="22" cy="32" r="9" fill="#0d0b0b"/><circle cx="80" cy="32" r="9" fill="#0d0b0b"/></g><rect class="fflash" x="0" y="0" width="720" height="200" fill="#ff2a2a"/>' : "";
   const cd = ph === "roll" ? `<text x="360" y="92" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="70" font-weight="700" fill="#ff4b3e" class="fcd">${Math.max(1, 3 - Math.floor((now - F.rollAt) / 1000))}</text>` : "";
-  return `<svg class="fscene" viewBox="0 0 720 200" role="img" aria-label="Escena del furgón"><defs><linearGradient id="fsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07060a"/><stop offset="1" stop-color="#241a22"/></linearGradient></defs><rect width="720" height="200" fill="url(#fsky)"/><circle cx="630" cy="34" r="14" fill="#e9e3d0" opacity=".8"/>${bld}<rect y="150" width="720" height="50" fill="#141112"/><g class="froadl${["reveal", "roll"].includes(ph) && revealDone(F, G, now) ? " run" : ""}">${Array.from({ length: 14 }, (_, i) => `<rect x="${i * 60}" y="173" width="32" height="4" fill="#d8c25a"/>`).join("")}</g>${van}${pol}${cd}</svg>`;
+  return `<svg class="fscene" viewBox="0 0 720 200" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Escena del furgón"><defs><linearGradient id="fsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07060a"/><stop offset="1" stop-color="#241a22"/></linearGradient></defs><rect width="720" height="200" fill="url(#fsky)"/><circle cx="630" cy="34" r="14" fill="#e9e3d0" opacity=".8"/>${bld}<rect y="150" width="720" height="50" fill="#141112"/><g class="froadl${ph === "roll" ? " run" : ""}">${Array.from({ length: 14 }, (_, i) => `<rect x="${i * 60}" y="173" width="32" height="4" fill="#d8c25a"/>`).join("")}</g>${van}${pol}${cd}</svg>`;
 }
 function boardHTML(F, G, BS, now) {
   const ph = view(F, G, now), order = bidders(F, G).sort((a, b) => F.bids[a].v - F.bids[b].v), n = shownCount(F, G, now), done = revealDone(F, G, now), dr = done ? drivers(F, G) : [];
   return `<div class="lboard">${G.bands.map((b) => { const B = BS[b]; if (!B) return ""; const bid = F.bids?.[b];
     let tag;
-    if (F.phase === "ask") tag = `<i class="lfrom">${bid ? "cifra enviada" : "pensando…"}</i>`;
-    else { const vis = !bid || order.indexOf(b) < n; tag = `<i class="fbid">${!bid ? "—" : vis ? nf(bid.v) : "?"}</i>` + (dr.includes(b) ? '<i class="ldot">CONDUCE</i>' : F.ch?.[b] ? `<i class="lfrom">${ph === "res" ? (F.ch[b].v === "sube" ? "se subió" : "se quedó abajo") : "ha decidido"}</i>` : "");
+    const chip = (ok, a, b2) => `<i class="fchip ${ok ? "ok" : "wait"}">${ok ? "✅ " + a : "⏳ " + b2}</i>`;
+    if (F.phase === "ask") tag = chip(!!bid, "Cifra enviada", "Pensando la cifra…");
+    else { const vis = !bid || order.indexOf(b) < n; tag = `<i class="fbid">${!bid ? "—" : vis ? nf(bid.v) : "?"}</i>` + (dr.includes(b) ? '<i class="ldot">🚐 CONDUCE</i>' : !bid ? "" : ph === "res" ? (F.ch?.[b] ? `<i class="lfrom">${F.ch[b].v === "sube" ? "se subió" : "se quedó abajo"}</i>` : '<i class="lfrom">no decidió</i>') : done ? chip(!!F.ch?.[b], "Ha decidido", "Decidiendo…") : "");
       if (ph === "res" && F.res?.delta?.[b]) tag += `<i class="${F.res.delta[b] > 0 ? "fwin" : "flose"}">${F.res.delta[b] > 0 ? "+" : ""}${eu(F.res.delta[b])}</i>`; }
     return `<div class="lband${dr.includes(b) ? " hot" : ""}" style="--bc:${B.color}"><b>${esc(B.name)}</b><span>${eu(Math.max(0, B.botin))}</span>${tag}</div>`; }).join("")}</div>`;
 }
@@ -112,7 +113,7 @@ export function projector(root, G, BS) {
   const ph = view(F, G, now), key = [F.round, ph, shownCount(F, G, now), revealDone(F, G, now)].join("|");
   if (key !== pKey) { pKey = key; root.innerHTML = head(F, G, BS, now) + `<div id="fsc">${scene(F, G, BS, now)}</div>` + answerHTML(F, G, BS, now) + `<div id="fbd"></div>`; }
   else if (ph === "roll") { const s = root.querySelector("#fsc"); if (s) s.innerHTML = scene(F, G, BS, now); }
-  const bd = root.querySelector("#fbd"); if (bd) bd.innerHTML = boardHTML(F, G, BS, now);
+  const bd = root.querySelector("#fbd"); if (bd) { const h = progress(F, G, now) + boardHTML(F, G, BS, now); if (bd.dataset.h !== h) { bd.dataset.h = h; bd.innerHTML = h; } }
   // sonido
   aud();
   const n = shownCount(F, G, now);
@@ -143,6 +144,11 @@ export function student(G, BS, me) {
   else if (ph === "roll") h += `<div class="watch"><b>¿Llegará?</b><p class="lead">Mirad al proyector.</p></div>`;
   else if (ph === "res") { const d = F.res?.delta?.[my] || 0; h += `<div class="panel" style="border-color:${d >= 0 ? "var(--ok)" : "var(--red2)"}"><h3>Vuestra ronda</h3><p style="margin:0;font:700 26px var(--f-mono);color:${d >= 0 ? "var(--ok)" : "var(--red2)"}">${d > 0 ? "+" : ""}${eu(d)}</p><p class="lead" style="margin:6px 0 0">${esc(F.res?.why?.[my] || "Sin apuesta esta ronda.")}</p></div>` + answerHTML(F, G, BS, now); }
   return h;
+}
+function progress(F, G, now) {
+  if (F.phase === "ask") { const n = bidders(F, G).length; return `<div class="fprog"><b>${n} / ${G.bands.length}</b> bandas han enviado su cifra</div>`; }
+  if (F.phase === "reveal" && revealDone(F, G, now)) { const dr = drivers(F, G), need = bidders(F, G).filter((b) => !dr.includes(b)), n = need.filter((b) => F.ch?.[b]).length; return `<div class="fprog"><b>${n} / ${need.length}</b> bandas han decidido si se suben</div>`; }
+  return "";
 }
 export const board = (G, BS) => (G.fur && G.fur.phase && G.fur.phase !== "end" ? boardHTML(G.fur, G, BS, Date.now()) : "");
 // el hash de la vista sirve para no repintar si no cambia nada

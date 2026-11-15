@@ -6,7 +6,7 @@
 import { DB } from "./db.js";
 import { esc, eu, gpath, bpath, addMoney, active, SEAT } from "./core.js";
 import { avatarSVG, avName } from "./avatars.js";
-import { aud, beep, playBuf, siren } from "./sfx.js";
+import { aud, beep, playBuf, siren, ping, siren2, chime, buzz, noise, thump } from "./sfx.js";
 
 export const PENALTY = 250000, ROUNDS = 3, QTIME = 10000;
 
@@ -177,15 +177,18 @@ export function hostTick(G, BS, { sound = false } = {}) {
     return run(upLoc(G.code, { ...q, from: L.holder, passes: (L.passes || 0) + 1 }));
   }
 }
+let lastPhaseSound = null;
 function hostSound(L, now) {
   aud();
   if (["q", "pick", "wrong"].includes(L.phase)) {
-    const iv = Math.max(140, 1000 - (now - L.t0) * 0.004 * (L.police - L.t0 < 100000 ? 3 : 1));
-    if (now - beepAt > iv) { beepAt = now; beep(1900, 0.05, 0.035); }
+    // el ping del localizador se acelera y sube de tono según pasa el tiempo
+    const frac = Math.min(1, (now - L.t0) / Math.max(30000, L.police - L.t0 - 15000)), iv = 1100 - frac * 850;
+    if (now - beepAt > iv) { beepAt = now; ping(1050 + frac * 500, 0.05 + frac * 0.03); if (frac > 0.75) setTimeout(thump, 60); }
   }
-  const t = L.turn;
+  const t = L.turn, key = (t?.id || "") + L.phase;
+  if (key !== lastPhaseSound) { lastPhaseSound = key; if (L.phase === "pick") chime(); if (L.phase === "wrong") buzz(); }
   if (t && t.id !== lastTurnSound && L.phase === "q") { lastTurnSound = t.id; const m = LQ[t.qi]?.m; if (m && m.startsWith("aud")) setTimeout(() => playMedia(m), 400); }
-  if (L.phase === "boom" && lastTurnSound !== "boom" + L.round) { lastTurnSound = "boom" + L.round; [0, 350, 700, 1050].forEach((d, k) => setTimeout(() => beep(k % 2 ? 600 : 900, 0.32, 0.09, "sawtooth"), d)); setTimeout(() => siren(2), 1300); }
+  if (L.phase === "boom" && lastTurnSound !== "boom" + L.round) { lastTurnSound = "boom" + L.round; noise(0.7, 0.35, 1500); thump(); setTimeout(() => siren2(3), 250); }
 }
 
 /* ---------------- vistas ---------------- */

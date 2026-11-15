@@ -18,8 +18,8 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 export async function addBots(G, BS, lvl) {
   for (const id of G.bands) {
     const B = BS[id]; if (!B || Object.values(B.members || {}).some((m) => active(m) && !m.bot)) continue;
-    const n = Math.random() < 0.5 ? 4 : 5, used = new Set(), members = {};
-    for (let i = 0; i < n; i++) { let nm; do nm = pick(NAMES); while (used.has(nm)); used.add(nm); members["bot_" + id + i] = { name: nm, av: Math.floor(Math.random() * 16), at: Date.now() + i, bot: true }; }
+    const n = Math.random() < 0.5 ? 4 : 5, used = new Set(), avs = [...Array(16).keys()].sort(() => Math.random() - 0.5), members = {};
+    for (let i = 0; i < n; i++) { let nm; do nm = pick(NAMES); while (used.has(nm)); used.add(nm); members["bot_" + id + i] = { name: nm, av: avs[i], at: Date.now() + i, bot: true }; }
     await DB.update(bpath(G.code, id), { members, bot: lvl, size: n });
   }
 }

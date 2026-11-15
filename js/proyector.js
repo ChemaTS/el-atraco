@@ -30,7 +30,7 @@ export function enter(el, args) {
     if (isFur() && $("#board")) FUR.projector($("#board"), G, BS);
   }, 200);
 }
-export function leave() { stop(); music(false); document.querySelector(".feed")?.remove(); document.querySelector(".mus")?.remove(); document.querySelector(".vidwrap")?.remove(); document.querySelector(".gate")?.remove(); }
+export function leave() { stop(); document.body.classList.remove("pjcompact"); music(false); document.querySelector(".feed")?.remove(); document.querySelector(".mus")?.remove(); document.querySelector(".vidwrap")?.remove(); document.querySelector(".gate")?.remove(); }
 
 function gate() {
   if (armed || document.querySelector(".gate")) return;
@@ -72,7 +72,8 @@ function draw() {
       <div style="text-align:right"><div class="timer" id="pjt"></div><div style="font:700 28px var(--f-display);color:var(--amber)">${msg}</div></div></div>
     <div class="pjboard" id="board"></div></div>`;
   drawBoard(); video();
-  const k = phase(G.phase).key; music(G.stage !== "video" && !["loc", "fur", "final"].includes(k));
+  const k = phase(G.phase).key;
+  document.body.classList.toggle("pjcompact", G.stage === "play" && ["loc", "fur", "final"].includes(k)); music(G.stage !== "video" && !["loc", "fur", "final"].includes(k));
 }
 
 const isFinal = () => G && phase(G.phase).key === "final" && G.stage === "play";
@@ -92,7 +93,7 @@ function drawBoard() {
   el.style.display = "";
   el.innerHTML = G.bands.map((id) => BS[id]).filter(Boolean).map((b) => {
     const ms = Object.values(b.members || {}).filter(active);
-    return `<div class="pjband" style="--bc:${b.color}"><b>${esc(b.name)}</b><span>${eu(Math.max(0, b.botin))}</span><div class="avs">${ms.map((m) => avatarSVG(m.av ?? 0, 40)).join("") || "<small>nadie aún</small>"}</div></div>`;
+    return `<div class="pjband" style="--bc:${b.color}"><b>${esc(b.name)}</b><span>${eu(Math.max(0, b.botin))}</span><div class="avs">${ms.map((m) => `<span class="pjm">${avatarSVG(m.av ?? 0, 40)}<small>${esc(m.name)}</small></span>`).join("") || "<small>nadie aún</small>"}</div></div>`;
   }).join("");
 }
 

@@ -41,3 +41,24 @@ export function tensionOn() {
   const hb = setInterval(() => { thump(); setTimeout(thump, 180); }, 950); TEN = { os, g, hb };
 }
 export function tensionOff() { if (!TEN) return; const ac = aud(); try { TEN.g.gain.linearRampToValueAtTime(0, ac.currentTime + 0.3); TEN.os.forEach((o) => o.stop(ac.currentTime + 0.35)); } catch { } clearInterval(TEN.hb); TEN = null; }
+
+// "ping" de localizador: seno con eco corto (suena a radar, no a 8 bits)
+export function ping(f = 1250, v = 0.06) {
+  const ac = aud(); if (!ac) return; const t = ac.currentTime;
+  const tone = (fr, vol, at) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.setValueAtTime(fr, at); o.frequency.exponentialRampToValueAtTime(fr * 0.985, at + 0.4);
+    g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(vol, at + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.45); o.connect(g); g.connect(ac.destination); o.start(at); o.stop(at + 0.5); };
+  tone(f, v, t); tone(f * 2, v * 0.25, t); tone(f, v * 0.35, t + 0.11); tone(f, v * 0.15, t + 0.22);
+}
+// sirena europea (dos tonos suaves) con algo de vibrato
+export function siren2(dur = 2.8) {
+  const ac = aud(); if (!ac) return; const t = ac.currentTime, o = ac.createOscillator(), o2 = ac.createOscillator(), g = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain();
+  o.type = "triangle"; o2.type = "sine"; lfo.frequency.value = 6; lg.gain.value = 6; lfo.connect(lg); lg.connect(o.frequency); lg.connect(o2.frequency);
+  for (let k = 0; k < Math.ceil(dur / 0.45); k++) { const f = k % 2 ? 440 : 587; o.frequency.setValueAtTime(f, t + k * 0.45); o2.frequency.setValueAtTime(f * 2, t + k * 0.45); }
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.08, t + 0.1); g.gain.setValueAtTime(0.08, t + dur - 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  const g2 = ac.createGain(); g2.gain.value = 0.3; o.connect(g); o2.connect(g2); g2.connect(g); g.connect(ac.destination);
+  [o, o2, lfo].forEach((x) => { x.start(t); x.stop(t + dur + 0.05); });
+}
+// acorde suave (acierto)
+export function chime() { const ac = aud(); if (!ac) return; [523.25, 659.25, 783.99].forEach((f, i) => setTimeout(() => { const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime; o.type = "sine"; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9); o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 1); }, i * 90)); }
+// zumbido grave (fallo)
+export function buzz() { const ac = aud(); if (!ac) return; const o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter(), t = ac.currentTime; o.type = "sawtooth"; o.frequency.value = 110; f.type = "lowpass"; f.frequency.value = 600; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.08, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5); o.connect(f); f.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.55); }

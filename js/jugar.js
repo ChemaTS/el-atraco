@@ -40,15 +40,17 @@ function pickBand(g) {
   <form id="jn" class="panel" hidden style="margin-top:16px"><h3>Elige tu avatar</h3><div class="avgrid" id="avg"></div><h3>Tu nombre</h3><div class="row"><input class="inp" maxlength="28" placeholder="Nombre y apellido" aria-label="Tu nombre" required style="min-width:min(100%,22em)"><button class="btn red">Unirme</button></div><p id="jnw" class="fb warn" hidden></p></form>`;
   $("#backc").onclick = () => { stop(); askCode(); };
   let band = null, BD = {}, av = Math.floor(Math.random() * AVATARS.length);
-  const paintAv = () => { $("#avg").innerHTML = AVATARS.map((_, i) => `<button type="button" data-av="${i}" class="${i === av ? "on" : ""}" aria-label="${AV_NAMES[i]}" aria-pressed="${i === av}">${avatarSVG(i, 56)}<span>${AV_NAMES[i]}</span></button>`).join(""); };
-  paintAv();
-  $("#avg").onclick = (e) => { const b = e.target.closest("[data-av]"); if (b) { av = +b.dataset.av; paintAv(); } };
+  // avatares ya cogidos en la banda elegida (el que llega antes, elige)
+  const takenAv = () => { const t = {}; Object.values(BD[band]?.members || {}).filter(active).forEach((m) => (t[m.av ?? 0] = m.name)); return t; };
+  const paintAv = () => { const tk = takenAv(); if (tk[av] != null) { const free = AVATARS.map((_, i) => i).filter((i) => tk[i] == null); if (free.length) av = free[Math.floor(Math.random() * free.length)]; }
+    $("#avg").innerHTML = AVATARS.map((_, i) => `<button type="button" data-av="${i}" class="${i === av ? "on" : ""}" aria-label="${AV_NAMES[i]}${tk[i] != null ? " (cogido)" : ""}" aria-pressed="${i === av}"${tk[i] != null ? " disabled" : ""}>${avatarSVG(i, 56)}<span>${tk[i] != null ? "de " + esc(tk[i]) : AV_NAMES[i]}</span></button>`).join(""); };
+  $("#avg").onclick = (e) => { const b = e.target.closest("[data-av]"); if (b && !b.disabled) { av = +b.dataset.av; paintAv(); } };
   const paint = () => {
     $("#bp").innerHTML = g.bands.map((id) => { const b = bandInfo(id), d = BD[id] || {}, ms = Object.values(d.members || {}).filter(active);
       return `<button type="button" data-b="${id}" style="--bc:${b.color}${band === id ? ";outline:3px solid #fff" : ""}">${esc(d.name || b.name)}<small>banda ${esc(b.name).toLowerCase()} · ${ms.length} dentro</small>${ms.length ? `<small style="color:var(--fg)">${ms.map((m) => avName(m, 20)).join("")}</small>` : ""}</button>`; }).join("");
   };
-  unsub.push(DB.onCol(`games/${g.code}/bands`, (all) => { BD = all || {}; paint(); }));
-  $("#bp").onclick = (e) => { const bt = e.target.closest("[data-b]"); if (!bt) return; band = bt.dataset.b; paint(); $("#jn").hidden = false; $("#jn input").focus(); };
+  unsub.push(DB.onCol(`games/${g.code}/bands`, (all) => { BD = all || {}; paint(); if (band) paintAv(); }));
+  $("#bp").onclick = (e) => { const bt = e.target.closest("[data-b]"); if (!bt) return; band = bt.dataset.b; paint(); paintAv(); $("#jn").hidden = false; $("#jn input").focus(); };
   $("#jn").onsubmit = (e) => {
     e.preventDefault(); const name = $("#jn input").value.trim().replace(/\s+/g, " "); if (!name || !band) return;
     const same = Object.entries(BD[band]?.members || {}).find(([, m]) => m && m.name.toLowerCase() === name.toLowerCase());
@@ -56,6 +58,7 @@ function pickBand(g) {
     if (same) { // recuperar el puesto anterior: mismo asiento → mismo rol
       const prev = same[1]; sessionStorage.setItem("seat", same[0]);
       sessionStorage.setItem("me", JSON.stringify({ code: g.code, band, name: prev.name, av: prev.av ?? av, seat: same[0] })); stop(); location.reload(); return; }
+    if (takenAv()[av] != null) { paintAv(); $("#jnw").hidden = false; $("#jnw").textContent = "Ese avatar lo acaba de coger otra persona de tu banda. Elige otro."; return; }
     stop(); me = { code: g.code, band, name, av, seat: SEAT }; ME.set(me); join(me);
   };
 }
@@ -89,9 +92,8 @@ function draw() {
   if (!G || !B) return;
   const p = phase(G.phase), mem = Object.entries(B.members || {}).filter(([, x]) => active(x));
   if (!$("#jtop")) { app.innerHTML = '<div id="jtop"></div><div id="jbody"></div>'; mode = null; }
-  $("#jtop").innerHTML = `<div class="topbar" style="--bc:${B.color}"><div class="who">${avatarSVG(me.av ?? 0, 44)}<div><b>${esc(me.name)}</b><br><small style="color:var(--muted)">${esc(B.name)}</small></div></div><div class="loot" id="jloot" title="Botín de la banda">💰 ${eu(Math.max(0, B.botin))}</div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar de banda</button>' : ""}<button class="btn" id="out" type="button">Salir</button></div></div>`;
+  $("#jtop").innerHTML = `<div class="topbar" style="--bc:${B.color}"><div class="who">${avatarSVG(me.av ?? 0, 44)}<div><b>${esc(me.name)}</b><br><small style="color:var(--muted)">${esc(B.name)}</small></div></div><div class="loot" id="jloot" title="Botín de la banda">💰 ${eu(Math.max(0, B.botin))}</div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar banda, nombre o avatar</button>' : ""}</div></div>`;
   if (lastBot != null && B.botin !== lastBot) flyMoney(B.botin - lastBot); lastBot = B.botin;
-  $("#out").onclick = async (e) => { const b = e.currentTarget; if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = "¿Salir? Pulsa otra vez"; setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = "Salir"; } }, 3000); return; } await quit(); askCode(); };
   const cb = $("#chb"); if (cb) cb.onclick = async () => { const g = G; await quit(); pickBand(g); };
   if (p.key === "loc" && G.stage === "play") {
     unmountPuzzle(); const html = header(p) + LOC.studentView(G, BS, B, me.band);
