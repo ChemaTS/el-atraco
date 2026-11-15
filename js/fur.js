@@ -68,6 +68,20 @@ export async function roll(G, BS) {
   // el dinero se aplica cuando termina el redoble, para no destripar el resultado
   setTimeout(() => G.bands.forEach((b) => r.delta[b] && addMoney(G.code, b, r.delta[b], "furgón · " + r.why[b], "fur").catch(console.error)), ROLL + 200);
 }
+// avance automático: cuando todas las bandas con gente han enviado / decidido
+const withPeople = (G, BS) => G.bands.filter((b) => Object.values(BS[b]?.members || {}).some(active));
+let autoAt = null, autoKey = null;
+export function autoAdvance(G, BS) {
+  const F = G.fur; if (!F || G.stage !== "play") return;
+  const now = Date.now(), live = withPeople(G, BS);
+  let ready = null;
+  if (F.phase === "ask") ready = live.length && live.every((b) => F.bids?.[b] != null) ? "reveal" : null;
+  if (F.phase === "reveal" && revealDone(F, G, now)) { const dr = drivers(F, G), need = bidders(F, G).filter((b) => !dr.includes(b)); ready = need.every((b) => F.ch?.[b]) ? "roll" : null; }
+  const key = ready && F.round + ":" + ready;
+  if (!ready) { autoAt = null; autoKey = null; return; }
+  if (key !== autoKey) { autoKey = key; autoAt = now + 1500; return; } // un respiro antes de avanzar
+  if (autoAt && now >= autoAt) { autoAt = null; if (ready === "reveal") reveal(G).catch(console.error); else roll(G, BS).catch(console.error); }
+}
 export const endFur = (G) => up(G.code, { phase: "end" });
 
 /* ---------------- escena ---------------- */
@@ -81,7 +95,7 @@ function scene(F, G, BS, now) {
   const van = `<g class="fvan ${res}" transform="translate(280,118)"><rect x="0" y="0" width="92" height="38" rx="5" fill="${col}"/><path d="M92 8h22l18 18v12H92z" fill="${col}"/><rect x="98" y="12" width="15" height="12" fill="#0d0b0b"/><path d="M132 30 L240 18 L240 44 Z" fill="#fff6c8" opacity="${dr.length ? ".18" : "0"}"/><circle cx="24" cy="42" r="10" fill="#0d0b0b" stroke="#777" stroke-width="3"/><circle cx="112" cy="42" r="10" fill="#0d0b0b" stroke="#777" stroke-width="3"/>${dr.length ? `<text x="46" y="25" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="13" font-weight="700" fill="#0d0b0b">${nf(F.bids[dr[0]].v)}</text>` : ""}</g>`;
   const pol = res === "crash" ? '<g class="fpol" transform="translate(470,128)"><rect x="0" y="0" width="100" height="30" rx="5" fill="#e9e6e1"/><rect x="18" y="-12" width="56" height="14" rx="3" fill="#e9e6e1"/><rect class="lr" x="30" y="-20" width="14" height="9" fill="#ff2a2a"/><rect class="lb" x="46" y="-20" width="14" height="9" fill="#2a6bff"/><text x="50" y="21" text-anchor="middle" font-family="IBM Plex Sans,Arial" font-size="11" font-weight="700" fill="#14213d">POLICÍA</text><circle cx="22" cy="32" r="9" fill="#0d0b0b"/><circle cx="80" cy="32" r="9" fill="#0d0b0b"/></g><rect class="fflash" x="0" y="0" width="720" height="200" fill="#ff2a2a"/>' : "";
   const cd = ph === "roll" ? `<text x="360" y="92" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="70" font-weight="700" fill="#ff4b3e" class="fcd">${Math.max(1, 3 - Math.floor((now - F.rollAt) / 1000))}</text>` : "";
-  return `<svg class="fscene" viewBox="0 0 720 200" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Escena del furgón"><defs><linearGradient id="fsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07060a"/><stop offset="1" stop-color="#241a22"/></linearGradient></defs><rect width="720" height="200" fill="url(#fsky)"/><circle cx="630" cy="34" r="14" fill="#e9e3d0" opacity=".8"/>${bld}<rect y="150" width="720" height="50" fill="#141112"/><g class="froadl${ph === "roll" ? " run" : ""}">${Array.from({ length: 14 }, (_, i) => `<rect x="${i * 60}" y="173" width="32" height="4" fill="#d8c25a"/>`).join("")}</g>${van}${pol}${cd}</svg>`;
+  return `<svg class="fscene" viewBox="0 0 720 200" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Escena del furgón"><defs><linearGradient id="fsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07060a"/><stop offset="1" stop-color="#241a22"/></linearGradient></defs><rect width="720" height="200" fill="url(#fsky)"/><circle cx="630" cy="34" r="14" fill="#e9e3d0" opacity=".8"/>${bld}<rect y="150" width="720" height="50" fill="#141112"/><g class="froadl${ph === "roll" ? " run" : ""}">${Array.from({ length: 14 }, (_, i) => `<rect x="${i * 60}" y="173" width="32" height="4" fill="#d8c25a"/>`).join("")}</g>${van}${pol}${cd}</svg>`;
 }
 function boardHTML(F, G, BS, now) {
   const ph = view(F, G, now), order = bidders(F, G).sort((a, b) => F.bids[a].v - F.bids[b].v), n = shownCount(F, G, now), done = revealDone(F, G, now), dr = done ? drivers(F, G) : [];
@@ -109,9 +123,9 @@ let pKey = null, pSound = { reveal: null, roll: null, res: null, shown: -1 };
 export function projector(root, G, BS) {
   const F = G.fur, now = Date.now();
   if (!F || !F.phase) { root.innerHTML = `<div class="watch"><b>El furgón</b><p class="lead">Esperando a que el profe saque el primer furgón.</p></div>`; pKey = null; return; }
-  if (F.phase === "end") { if (pKey !== "end") { pKey = "end"; tensionOff(); root.innerHTML = `<div class="watch"><b>Fin de la huida</b><p class="lead">Atentos al recuento.</p></div>`; } return; }
+  if (F.phase === "end") { if (pKey !== "end" || !root.querySelector(".watch")) { pKey = "end"; tensionOff(); root.innerHTML = `<div class="watch"><b>Fin de la huida</b><p class="lead">Atentos al recuento.</p></div>`; } return; }
   const ph = view(F, G, now), key = [F.round, ph, shownCount(F, G, now), revealDone(F, G, now)].join("|");
-  if (key !== pKey) { pKey = key; root.innerHTML = head(F, G, BS, now) + `<div id="fsc">${scene(F, G, BS, now)}</div>` + answerHTML(F, G, BS, now) + `<div id="fbd"></div>`; }
+  if (key !== pKey || !root.querySelector("#fsc")) { pKey = key; root.innerHTML = head(F, G, BS, now) + `<div id="fsc">${scene(F, G, BS, now)}</div>` + answerHTML(F, G, BS, now) + `<div id="fbd"></div>`; }
   else if (ph === "roll") { const s = root.querySelector("#fsc"); if (s) s.innerHTML = scene(F, G, BS, now); }
   const bd = root.querySelector("#fbd"); if (bd) { const h = progress(F, G, now) + boardHTML(F, G, BS, now); if (bd.dataset.h !== h) { bd.dataset.h = h; bd.innerHTML = h; } }
   // sonido

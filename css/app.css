@@ -74,5 +74,5 @@ body.proj .wrap{max-width:none;padding:28px 40px}
 body.pjcompact .pj{gap:12px}
 body.pjcompact .pj .hcard{min-height:96px}body.pjcompact .pj .hcard h1{font-size:40px}body.pjcompact .pj .hcard .t{padding:10px 18px}
 body.pjcompact .pj .codebig{font-size:26px}body.pjcompact .pj .timer{font-size:40px}
-body.pjcompact .fscene{height:28vh;min-height:150px}
+body.pjcompact .fscene{height:30vh;min-height:170px;background:#07060a}
 body.pjcompact .lboard .lband b{font-size:22px}

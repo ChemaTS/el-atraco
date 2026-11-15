@@ -58,6 +58,7 @@ function open(code) {
   let furWas = null;
   tick = setInterval(() => { if (G && phase(G.phase).key === "loc" && G.stage === "play") LOC.hostTick(G, BS);
     if (G) BOTS.tick(G, BS);
+    if (G && phase(G.phase).key === "fur") FUR.autoAdvance(G, BS);
     if (G && G.fur && G.fur.phase === "reveal") { const d = FUR.revealDone(G.fur, G); if (d !== furWas) { furWas = d; draw(); } } const el = $("#ptime"); const r = remaining(G); if (el) el.textContent = r == null ? "—" : fmt(r); }, 500);
 }
 
@@ -105,8 +106,8 @@ function furPanel() {
   const need = G.bands.filter((b) => !dr.includes(b) && F.bids?.[b] != null), nc = need.filter((b) => F.ch?.[b]).length;
   let btn = "";
   if (!F.phase) btn = `<button class="btn red" data-fur="start"${play ? "" : " disabled"}>Sacar el primer furgón</button>${play ? "" : ' <span style="color:var(--muted)">Primero lanza el vídeo o pulsa «Saltar vídeo / iniciar fase».</span>'}`;
-  else if (F.phase === "ask") btn = `<button class="btn red" data-fur="reveal"${nb ? "" : " disabled"}>Destapar cifras (${nb}/${G.bands.length})</button>`;
-  else if (F.phase === "reveal") btn = FUR.revealDone(F, G, now) ? `<button class="btn red" data-fur="roll">Revelar respuesta (${nc}/${need.length} han decidido)</button>` : '<span style="color:var(--muted)">Destapando cifras…</span>';
+  else if (F.phase === "ask") btn = `<button class="btn" data-fur="reveal"${nb ? "" : " disabled"}>Destapar ya (${nb}/${G.bands.length})</button> <span style="color:var(--muted);font-size:13px">Se destapan solas cuando todas las bandas hayan enviado.</span>`;
+  else if (F.phase === "reveal") btn = FUR.revealDone(F, G, now) ? `<button class="btn" data-fur="roll">Revelar ya (${nc}/${need.length} han decidido)</button> <span style="color:var(--muted);font-size:13px">Se revela sola cuando todas hayan decidido.</span>` : '<span style="color:var(--muted)">Destapando cifras…</span>';
   else if (F.phase === "roll" && F.round < FUR.ROUNDS) btn = `<button class="btn red" data-fur="next">Siguiente furgón (${F.round + 1}/${FUR.ROUNDS})</button>`;
   else if (F.phase === "roll") btn = `<button class="btn red" data-fur="end">Terminar la huida</button>`;
   const q = F.qi != null ? FUR.FQ[F.qi] : null;
