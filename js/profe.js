@@ -8,6 +8,7 @@ import { avName } from "./avatars.js";
 import * as LOC from "./loc.js";
 import * as FUR from "./fur.js";
 import * as REC from "./recuento.js";
+import * as BOTS from "./bots.js";
 import { active, $, esc, eu, T, bandInfo, phase, gpath, bpath, createGame, addMoney, remaining, fmt, startPlay, showErr } from "./core.js";
 
 let solOpen = false;
@@ -47,6 +48,7 @@ function open(code) {
   unsub.push(DB.onCol(`games/${code}/bands`, (b) => { BS = b || {}; G && draw(); }));
   let furWas = null;
   tick = setInterval(() => { if (G && phase(G.phase).key === "loc" && G.stage === "play") LOC.hostTick(G, BS);
+    if (G) BOTS.tick(G, BS);
     if (G && G.fur && G.fur.phase === "reveal") { const d = FUR.revealDone(G.fur, G); if (d !== furWas) { furWas = d; draw(); } } const el = $("#ptime"); const r = remaining(G); if (el) el.textContent = r == null ? "—" : fmt(r); }, 500);
 }
 
@@ -124,8 +126,9 @@ function draw() {
     </div>`)}
   ${pzPanel()}${locPanel()}${furPanel()}${recPanel()}
   ${T("Hilo de la partida", `<div class="phases">${PHASES.map((q, i) => `<div class="ph${i === g.phase ? " cur" : ""}"><b>${i}. ${esc(q.area)}</b><span>${esc(q.title)}</span>${q.minutes ? `<label class="row" style="gap:4px;font-size:13px;color:var(--muted)"><input class="inp" style="width:4.5em;font-size:14px;padding:4px 6px" type="number" min="1" max="60" data-min="${q.key}" value="${g.minutes?.[q.key] ?? q.minutes}" aria-label="Minutos de ${esc(q.title)}"> min</label>` : ""}<button class="btn" data-go="${i}"${i === g.phase ? " disabled" : ""}>Ir</button></div>`).join("")}</div>`)}
-  ${T("Bandas", `<table class="tbl"><thead><tr><th>Banda</th><th>Botín</th><th>Alumnos</th><th>Ajustar dinero</th></tr></thead><tbody>
-    ${bands.map((b) => { const ms = Object.values(b.members || {}).filter(active); return `<tr><td><form class="row" data-name="${b.id}" style="gap:6px"><span class="dot" style="--bc:${b.color}"></span><input class="inp" id="nm-${b.id}" style="width:14em;font-size:14px;padding:6px" maxlength="32" value="${esc(b.name)}" aria-label="Nombre de la banda ${esc(bandInfo(b.id).name)}"><button class="btn" type="button" data-dice="${b.id}" title="Nombre aleatorio" aria-label="Nombre aleatorio">🎲</button><button class="btn">Guardar</button></form><small style="color:var(--muted)">color ${esc(bandInfo(b.id).name).toLowerCase()} · grupo de <select data-size="${b.id}" aria-label="Tamaño del grupo ${esc(b.name)}" style="background:var(--bg);color:var(--fg);border:1px solid var(--line)"><option${b.size === 4 ? " selected" : ""}>4</option><option${b.size === 5 ? " selected" : ""}>5</option></select>${g.phase === 0 ? " (se fija solo al empezar)" : ""}</small></td><td>${eu(Math.max(0, b.botin))}</td><td>${ms.length ? ms.map((m) => avName(m, 22)).join("") : '<span style="color:var(--muted)">nadie aún</span>'}</td>
+  ${T("Bandas", `<div class="row" style="margin-bottom:12px">🤖 <span>Bandas bot para probar:</span><select id="botlvl" aria-label="Nivel de los bots" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);padding:6px">${Object.entries(BOTS.LEVELS).map(([k, v]) => `<option value="${k}"${k === "medio" ? " selected" : ""}>${v.label}</option>`).join("")}</select><button class="btn" data-bots="add">Rellenar con bots las bandas vacías</button>${bands.some((b) => b.bot) ? '<button class="btn" data-bots="del">Quitar bots</button>' : ""}<span style="color:var(--muted);font-size:13px">Juegan solos mientras esta pantalla esté abierta.</span></div>
+  <table class="tbl"><thead><tr><th>Banda</th><th>Botín</th><th>Alumnos</th><th>Ajustar dinero</th></tr></thead><tbody>
+    ${bands.map((b) => { const ms = Object.values(b.members || {}).filter(active); return `<tr><td><form class="row" data-name="${b.id}" style="gap:6px"><span class="dot" style="--bc:${b.color}"></span><input class="inp" id="nm-${b.id}" style="width:14em;font-size:14px;padding:6px" maxlength="32" value="${esc(b.name)}" aria-label="Nombre de la banda ${esc(bandInfo(b.id).name)}"><button class="btn" type="button" data-dice="${b.id}" title="Nombre aleatorio" aria-label="Nombre aleatorio">🎲</button><button class="btn">Guardar</button></form>${b.bot ? `<span class="tag" style="color:var(--blue);border-color:var(--blue)">🤖 bot ${esc(BOTS.LEVELS[b.bot]?.label || "")}</span> ` : ""}<small style="color:var(--muted)">color ${esc(bandInfo(b.id).name).toLowerCase()} · grupo de <select data-size="${b.id}" aria-label="Tamaño del grupo ${esc(b.name)}" style="background:var(--bg);color:var(--fg);border:1px solid var(--line)"><option${b.size === 4 ? " selected" : ""}>4</option><option${b.size === 5 ? " selected" : ""}>5</option></select>${g.phase === 0 ? " (se fija solo al empezar)" : ""}</small></td><td>${eu(Math.max(0, b.botin))}</td><td>${ms.length ? ms.map((m) => avName(m, 22)).join("") : '<span style="color:var(--muted)">nadie aún</span>'}</td>
       <td><form class="row" data-money="${b.id}"><input class="inp" style="width:9em;font-size:14px;padding:6px" type="number" step="50000" placeholder="±50000" aria-label="Cantidad para ${esc(b.name)}"><button class="btn">Aplicar</button></form></td></tr>`; }).join("")}
   </tbody></table>`)}`;
   const fe = focusId && document.getElementById(focusId);
@@ -154,6 +157,11 @@ document.addEventListener("click", (e) => {
   const used = new Set(Object.values(BS).map((b) => b.name)), inp = document.getElementById("nm-" + d.dataset.dice);
   const pool = BAND_NAMES.filter((n) => !used.has(n) && n !== inp.value);
   inp.value = pool[Math.floor(Math.random() * pool.length)] || inp.value; inp.focus();
+});
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-bots]"); if (!b || !G || !location.hash.startsWith("#/profe")) return;
+  b.disabled = true;
+  (b.dataset.bots === "add" ? BOTS.addBots(G, BS, $("#botlvl").value) : BOTS.removeBots(G, BS)).catch(showErr);
 });
 document.addEventListener("click", (e) => {
   const f = e.target.closest("[data-fur]"); if (!f || !G || !location.hash.startsWith("#/profe")) return;
