@@ -7,6 +7,7 @@ import { avatarSVG } from "./avatars.js";
 import * as LOC from "./loc.js";
 import * as FUR from "./fur.js";
 import * as REC from "./recuento.js";
+import * as CER from "./ceremonia.js";
 import { beep } from "./sfx.js";
 import { active, $, esc, eu, phase, gpath, remaining, fmt, startPlay, header } from "./core.js";
 
@@ -24,6 +25,7 @@ export function enter(el, args) {
   unsub.push(DB.onDoc(gpath(code), (g) => { G = g; draw(); }));
   unsub.push(DB.onCol(`games/${code}/bands`, (b) => { BS = b || {}; events(); drawBoard(); }));
   tick = setInterval(() => {
+    if (isFinal() && $("#board")) recuento($("#board"));
     const el = $("#pjt"); if (!el || !G) return;
     const r = remaining(G); el.textContent = r == null ? "" : fmt(r); el.classList.toggle("low", r != null && r < 60000);
     if (isLoc()) { LOC.hostTick(G, BS, { sound: armed }); LOC.barTick(app, G); }
@@ -77,11 +79,27 @@ function draw() {
 }
 
 const isFinal = () => G && phase(G.phase).key === "final" && G.stage === "play";
-let recKey = null;
+let recKey = null, cerT0 = null, cerKey = null, cerDone = false;
+window.__cerReplay = () => { cerT0 = Date.now(); cerDone = false; cerKey = null; recKey = null; };
+window.__cerSkip = () => { cerDone = true; cerKey = null; recKey = null; };
+let recRows = null, recAt = 0, recBusy = false;
 async function recuento(el) {
-  const rows = await REC.compute(G, BS), key = JSON.stringify(rows.map((r) => [r.botin, r.nota, r.serie]));
+  if (recBusy) return;
+  if (!recRows || Date.now() - recAt > 4000) { recBusy = true; try { recRows = await REC.compute(G, BS); recAt = Date.now(); } finally { recBusy = false; } }
+  const rows = recRows;
+  if (!cerDone) {
+    if (cerT0 == null) cerT0 = Date.now();
+    const sc = CER.scene(G, BS, rows, Date.now() - cerT0);
+    if (sc) {
+      if (sc.key !== cerKey) { cerKey = sc.key; recKey = null; if (armed) CER.sound(sc.sfx);
+        el.innerHTML = sc.html + `<div class="cer-ctl"><button class="btn sm" onclick="__cerSkip()">Saltar ⏭</button></div>`; }
+      return;
+    }
+    cerDone = true; cerKey = null;
+  }
+  const key = JSON.stringify(rows.map((r) => [r.botin, r.nota, r.serie]));
   if (key === recKey && el.querySelector(".rchart")) return; recKey = key;
-  el.innerHTML = `<div class="panel"><h3>El botín, fase a fase</h3>${REC.chart(rows)}</div><div class="rgrid"><div class="panel"><h3>Lo que ganó y perdió cada banda</h3>${REC.ledgerTable(rows)}</div><div class="panel"><h3>Quién escapa más rico</h3>${REC.ranking(rows)}</div></div><div class="panel"><h3>Nota del atraco (solo cuenta lo que depende de saber)</h3>${REC.notes(rows)}</div>`;
+  el.innerHTML = `<div class="cer-ctl"><button class="btn sm" onclick="__cerReplay()">🏆 Repetir ceremonia</button></div>` + `<div class="panel"><h3>El botín, fase a fase</h3>${REC.chart(rows)}</div><div class="rgrid"><div class="panel"><h3>Lo que ganó y perdió cada banda</h3>${REC.ledgerTable(rows)}</div><div class="panel"><h3>Quién escapa más rico</h3>${REC.ranking(rows)}</div></div><div class="panel"><h3>Nota del atraco (solo cuenta lo que depende de saber)</h3>${REC.notes(rows)}</div>`;
 }
 const isFur = () => G && phase(G.phase).key === "fur" && G.stage === "play";
 const isLoc = () => G && phase(G.phase).key === "loc" && G.stage === "play";

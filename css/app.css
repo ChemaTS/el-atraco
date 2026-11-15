@@ -76,3 +76,35 @@ body.pjcompact .pj .hcard{min-height:96px}body.pjcompact .pj .hcard h1{font-size
 body.pjcompact .pj .codebig{font-size:26px}body.pjcompact .pj .timer{font-size:40px}
 body.pjcompact .fscene{height:30vh;min-height:170px;background:#07060a}
 body.pjcompact .lboard .lband b{font-size:22px}
+
+/* ===== Ceremonia final ===== */
+.cer{position:relative;min-height:62vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden;animation:cerIn .5s ease-out}
+.cer-t{font-family:var(--disp,Impact,sans-serif);font-size:clamp(34px,5vw,72px);letter-spacing:.04em;text-transform:uppercase;color:#f2c94c;text-shadow:0 4px 0 #000,0 0 30px rgba(242,201,76,.35)}
+.cer-s{font-size:clamp(16px,1.8vw,26px);opacity:.85;margin:.3em 0 1em}
+.cer-icon{font-size:clamp(70px,10vw,140px);animation:cerPop .6s cubic-bezier(.2,1.6,.4,1) both}
+.cer-bands{display:flex;gap:24px;flex-wrap:wrap;justify-content:center;animation:cerUp .6s .6s both}
+.cer-b{border:4px solid var(--bc);background:rgba(0,0,0,.45);border-radius:14px;padding:14px 26px;box-shadow:0 0 30px var(--bc)}
+.cer-b b{display:block;font-size:clamp(24px,3vw,44px);color:var(--bc);margin-top:6px}
+.cer-b .avs,.pod-who .avs{display:flex;gap:4px;justify-content:center}
+.cer-v{margin-top:18px;font-size:clamp(20px,2.4vw,34px);font-weight:800;animation:cerUp .6s 1.2s both}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:18px;margin-top:20px;width:min(1000px,96%)}
+.pod{flex:1;display:flex;flex-direction:column;align-items:center}
+.pod-who{min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:8px;opacity:.35}
+.pod-who b{font-size:clamp(20px,2.4vw,36px)}
+.pod-who span{font-size:clamp(16px,1.8vw,26px);font-weight:800;color:#f2c94c}
+.pod.on .pod-who{opacity:1;animation:cerPop .7s cubic-bezier(.2,1.6,.4,1) both}
+.pod.on .pod-who b{color:var(--bc)}
+.pod-base{width:100%;background:linear-gradient(#3a3f4a,#22262e);border:3px solid #555;border-bottom:none;border-radius:10px 10px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:10px;font-size:44px;transform-origin:bottom;transition:height .6s}
+.pod-base em{font-style:normal;font-size:30px;font-weight:900;color:#ddd}
+.pod.on .pod-base{border-color:var(--bc);box-shadow:0 0 24px var(--bc);animation:cerGrow .7s ease-out both}
+.pod.gold .pod-base{background:linear-gradient(#f2c94c,#a77d12)}
+.pod.gold .pod-base em{color:#222}
+.confetti{position:absolute;inset:0;pointer-events:none}
+.confetti i{position:absolute;top:-20px;width:10px;height:16px;border-radius:2px;animation:cerFall linear infinite}
+.cer-ctl{text-align:right;margin-top:6px}
+.cer-ctl .btn{font-size:13px;padding:6px 12px;opacity:.7}
+@keyframes cerIn{from{opacity:0;transform:scale(.96)}to{opacity:1}}
+@keyframes cerPop{from{opacity:0;transform:scale(.2)}to{opacity:1;transform:scale(1)}}
+@keyframes cerUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+@keyframes cerGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes cerFall{to{transform:translateY(80vh) rotate(720deg)}}
