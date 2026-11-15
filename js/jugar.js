@@ -5,9 +5,10 @@ import { DB } from "./db.js";
 import { active, $, esc, eu, T, bandInfo, phase, gpath, bpath, remaining, fmt, header, SEAT, ME, showErr } from "./core.js";
 import { PHASES } from "./config.js";
 import { avatarSVG, avName, AVATARS, AV_NAMES } from "./avatars.js";
+import * as LOC from "./loc.js";
 import { mountPuzzle, updatePuzzle, unmountPuzzle, isPuzzle } from "./puzzles.js";
 
-let app, unsub = [], tick = null, G = null, B = null, me = null;
+let app, unsub = [], tick = null, G = null, B = null, me = null, BS = {};
 const stop = () => { unsub.forEach((f) => f()); unsub = []; clearInterval(tick); unmountPuzzle(); mode = null; };
 
 export function enter(el) {
@@ -65,10 +66,12 @@ async function join(m) {
   } catch (e) { return showErr(e); }
   unsub.push(DB.onDoc(gpath(m.code), (g) => { G = g; draw(); }));
   unsub.push(DB.onDoc(bpath(m.code, m.band), (b) => { B = b; draw(); }));
-  tick = setInterval(() => { const el = $("#jt"); if (el && G) { const r = remaining(G); el.textContent = r == null ? "" : fmt(r); el.classList.toggle("low", r != null && r < 60000); } }, 500);
+  unsub.push(DB.onCol(`games/${m.code}/bands`, (all) => { BS = all || {}; if (G && phase(G.phase).key === "loc") draw(); }));
+  tick = setInterval(() => { if (G && phase(G.phase).key === "loc") LOC.barTick(app, G); const el = $("#jt"); if (el && G) { const r = remaining(G); el.textContent = r == null ? "" : fmt(r); el.classList.toggle("low", r != null && r < 60000); } }, 150);
 }
 
 let mode = null;
+document.addEventListener("click", (e) => { if (G && location.hash.startsWith("#/jugar") && phase(G.phase).key === "loc") LOC.studentClick(e, G); });
 function draw() {
   if (!G || !B) return;
   const p = phase(G.phase), mem = Object.entries(B.members || {}).filter(([, x]) => active(x));
@@ -76,6 +79,11 @@ function draw() {
   $("#jtop").innerHTML = `<div class="pjrow" style="margin-bottom:14px"><div><span class="dot" style="--bc:${B.color}"></span><b>${esc(B.name)}</b> · ${avName(me, 26)} <span style="color:var(--muted)">· botín ${eu(Math.max(0, B.botin))}</span></div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar de banda</button>' : ""}<button class="btn" id="out" type="button">Salir</button></div></div>`;
   $("#out").onclick = async (e) => { const b = e.currentTarget; if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = "¿Salir? Pulsa otra vez"; setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = "Salir"; } }, 3000); return; } await quit(); askCode(); };
   const cb = $("#chb"); if (cb) cb.onclick = async () => { const g = G; await quit(); pickBand(g); };
+  if (p.key === "loc" && G.stage === "play") {
+    unmountPuzzle(); const html = header(p) + LOC.studentView(G, BS, B, me.band);
+    if (mode !== "loc:" + html) { mode = "loc:" + html; $("#jbody").innerHTML = html; LOC.studentAfter($("#jbody"), G); }
+    return;
+  }
   const isPz = isPuzzle(p.key) && (G.stage === "play" || G.stage === "paused");
   const m = isPz ? "pz:" + p.key : JSON.stringify([G.phase, G.stage, B.size, mem.map(([, x]) => x.name)]);
   if (m === mode) { if (isPz) updatePuzzle(G, B); return; }

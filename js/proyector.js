@@ -4,6 +4,7 @@
 import { DB } from "./db.js";
 import { MEDIA } from "./config.js";
 import { avatarSVG } from "./avatars.js";
+import * as LOC from "./loc.js";
 import { active, $, esc, eu, phase, gpath, remaining, fmt, startPlay, header } from "./core.js";
 
 let app, unsub = [], tick = null, G = null, BS = {}, armed = false, playingKey = null;
@@ -22,7 +23,8 @@ export function enter(el, args) {
   tick = setInterval(() => {
     const el = $("#pjt"); if (!el || !G) return;
     const r = remaining(G); el.textContent = r == null ? "" : fmt(r); el.classList.toggle("low", r != null && r < 60000);
-  }, 250);
+    if (isLoc()) { LOC.hostTick(G, BS, { sound: armed }); LOC.barTick(app, G); }
+  }, 200);
 }
 export function leave() { stop(); document.querySelector(".vidwrap")?.remove(); document.querySelector(".gate")?.remove(); }
 
@@ -46,8 +48,11 @@ function draw() {
   drawBoard(); video();
 }
 
+const isLoc = () => G && phase(G.phase).key === "loc" && G.stage === "play";
 function drawBoard() {
   const el = $("#board"); if (!el || !G) return;
+  if (isLoc()) { el.style.display = "block"; el.innerHTML = LOC.projectorView(G, BS); return; }
+  el.style.display = "";
   el.innerHTML = G.bands.map((id) => BS[id]).filter(Boolean).map((b) => {
     const ms = Object.values(b.members || {}).filter(active);
     return `<div class="pjband" style="--bc:${b.color}"><b>${esc(b.name)}</b><span>${eu(Math.max(0, b.botin))}</span><div class="avs">${ms.map((m) => avatarSVG(m.av ?? 0, 40)).join("") || "<small>nadie aún</small>"}</div></div>`;

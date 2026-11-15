@@ -5,6 +5,7 @@ import { DB } from "./db.js";
 import { BANDS, PHASES, TEACHER_PASSWORD, MONEY, BAND_NAMES } from "./config.js";
 import { PUZZLES, PZPATH } from "./puzzles.js";
 import { avName } from "./avatars.js";
+import * as LOC from "./loc.js";
 import { active, $, esc, eu, T, bandInfo, phase, gpath, bpath, createGame, addMoney, remaining, fmt, startPlay, showErr } from "./core.js";
 
 let solOpen = false;
@@ -42,7 +43,7 @@ function open(code) {
   app.innerHTML = `<p class="lead">Abriendo ${esc(code)}…</p>`;
   unsub.push(DB.onDoc(gpath(code), (g) => { G = g; if (!g) { app.innerHTML = `<div class="err">No existe la partida ${esc(code)}.</div><p><a class="btn" href="#/profe">Volver</a></p>`; return; } draw(); }));
   unsub.push(DB.onCol(`games/${code}/bands`, (b) => { BS = b || {}; G && draw(); }));
-  tick = setInterval(() => { const el = $("#ptime"); const r = remaining(G); if (el) el.textContent = r == null ? "—" : fmt(r); }, 500);
+  tick = setInterval(() => { if (G && phase(G.phase).key === "loc" && G.stage === "play") LOC.hostTick(G, BS); const el = $("#ptime"); const r = remaining(G); if (el) el.textContent = r == null ? "—" : fmt(r); }, 500);
 }
 
 const STAGE = { ready: "Preparada", video: "Vídeo", play: "En juego", paused: "Pausa" };
@@ -61,6 +62,20 @@ function pzPanel() {
   return T("Puzzle en juego · " + esc(P.title), `<table class="tbl"><thead><tr><th>Banda</th><th>Estado</th><th>Alarmas</th><th>Pistas</th><th>Roles</th><th></th></tr></thead><tbody>${rows}</tbody></table>
     <details id="soldet" style="margin-top:12px"${solOpen ? " open" : ""}><summary style="cursor:pointer;color:var(--amber)">Ver solución</summary><div class="sol">${P.teacher}</div></details>`);
 }
+function locPanel() {
+  if (phase(G.phase).key !== "loc") return "";
+  const L = G.loc || {}, play = G.stage === "play";
+  let btn = "";
+  if (!L.phase) btn = `<button class="btn red" data-loc="start"${play ? "" : " disabled"}>Empezar ronda 1</button>${play ? "" : ' <span style="color:var(--muted)">Primero lanza el vídeo o pulsa «Saltar vídeo / iniciar fase».</span>'}`;
+  else if (L.phase === "boom" && L.round < LOC.ROUNDS) btn = `<button class="btn red" data-loc="next">Ronda ${L.round + 1}: empieza ${esc(BS[L.caught]?.name || "")}</button>`;
+  else if (L.phase === "boom") btn = `<button class="btn red" data-loc="end">Terminar el localizador</button>`;
+  const host = L.host && Date.now() - L.host.beat < 7000;
+  const stats = G.bands.map((id) => { const s = (L.stats || {})[id] || {}; return `<tr><td><span class="dot" style="--bc:${BS[id]?.color}"></span>${esc(BS[id]?.name || id)}</td><td>${s.ok || 0} / ${s.n || 0}</td></tr>`; }).join("");
+  return T("Localizador", `<p style="margin:0 0 10px">${L.phase ? `Ronda ${L.round} de ${LOC.ROUNDS} · fase: <b>${esc(L.phase)}</b> · pases: ${L.passes || 0}` : "Sin empezar."} ${G.test ? "· policía en 40–70 s (modo prueba)" : "· policía en 3–5 min"}</p>
+    <div class="row">${btn}</div>${L.phase && !host ? '<p class="fb warn" style="margin-top:10px">Nadie hace de anfitrión: deja abierto el proyector o esta pantalla.</p>' : ""}
+    <table class="tbl" style="margin-top:12px"><thead><tr><th>Banda</th><th>Aciertos / preguntas</th></tr></thead><tbody>${stats}</tbody></table>
+    ${(L.log || []).length ? `<ul style="margin:10px 0 0">${L.log.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}`);
+}
 function draw() {
   watchPz();
   const g = G, p = phase(g.phase), r = remaining(g);
@@ -78,7 +93,7 @@ function draw() {
       <button class="btn" data-a="plus"${g.stage === "play" && g.endsAt ? "" : " disabled"}>+2 min</button>
       <button class="btn red" data-a="next"${g.phase >= PHASES.length - 1 ? " disabled" : ""}>Siguiente fase →</button>
     </div>`)}
-  ${pzPanel()}
+  ${pzPanel()}${locPanel()}
   ${T("Hilo de la partida", `<div class="phases">${PHASES.map((q, i) => `<div class="ph${i === g.phase ? " cur" : ""}"><b>${i}. ${esc(q.area)}</b><span>${esc(q.title)}</span>${q.minutes ? `<label class="row" style="gap:4px;font-size:13px;color:var(--muted)"><input class="inp" style="width:4.5em;font-size:14px;padding:4px 6px" type="number" min="1" max="60" data-min="${q.key}" value="${g.minutes?.[q.key] ?? q.minutes}" aria-label="Minutos de ${esc(q.title)}"> min</label>` : ""}<button class="btn" data-go="${i}"${i === g.phase ? " disabled" : ""}>Ir</button></div>`).join("")}</div>`)}
   ${T("Bandas", `<table class="tbl"><thead><tr><th>Banda</th><th>Botín</th><th>Alumnos</th><th>Ajustar dinero</th></tr></thead><tbody>
     ${bands.map((b) => { const ms = Object.values(b.members || {}).filter(active); return `<tr><td><form class="row" data-name="${b.id}" style="gap:6px"><span class="dot" style="--bc:${b.color}"></span><input class="inp" id="nm-${b.id}" style="width:14em;font-size:14px;padding:6px" maxlength="32" value="${esc(b.name)}" aria-label="Nombre de la banda ${esc(bandInfo(b.id).name)}"><button class="btn" type="button" data-dice="${b.id}" title="Nombre aleatorio" aria-label="Nombre aleatorio">🎲</button><button class="btn">Guardar</button></form><small style="color:var(--muted)">color ${esc(bandInfo(b.id).name).toLowerCase()} · grupo de <select data-size="${b.id}" aria-label="Tamaño del grupo ${esc(b.name)}" style="background:var(--bg);color:var(--fg);border:1px solid var(--line)"><option${b.size === 4 ? " selected" : ""}>4</option><option${b.size === 5 ? " selected" : ""}>5</option></select>${g.phase === 0 ? " (se fija solo al empezar)" : ""}</small></td><td>${eu(Math.max(0, b.botin))}</td><td>${ms.length ? ms.map((m) => avName(m, 22)).join("") : '<span style="color:var(--muted)">nadie aún</span>'}</td>
@@ -110,6 +125,13 @@ document.addEventListener("click", (e) => {
   const used = new Set(Object.values(BS).map((b) => b.name)), inp = document.getElementById("nm-" + d.dataset.dice);
   const pool = BAND_NAMES.filter((n) => !used.has(n) && n !== inp.value);
   inp.value = pool[Math.floor(Math.random() * pool.length)] || inp.value; inp.focus();
+});
+document.addEventListener("click", (e) => {
+  const l = e.target.closest("[data-loc]"); if (!l || !G || !location.hash.startsWith("#/profe")) return;
+  const a = l.dataset.loc; l.disabled = true;
+  if (a === "start") LOC.startRound(G, BS, 1).catch(showErr);
+  if (a === "next") LOC.startRound(G, BS, G.loc.round + 1, G.loc.caught).catch(showErr);
+  if (a === "end") LOC.endLoc(G).catch(showErr);
 });
 document.addEventListener("click", (e) => {
   const f = e.target.closest("[data-free]"); if (!f || !G) return;
