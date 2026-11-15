@@ -386,7 +386,7 @@ function roleList() {
 const roleName = (rid) => rid.split("+").map((r) => PZ[X.pid].roles[r]?.name || r).join(" + ");
 function head() {
   const a = Z().alarms || 0; let al = `<div class="alarm${a >= 4 ? " hot" : ""}"><small>ALARMA</small>`; for (let i = 0; i < 5; i++) al += `<i class="${i < a ? "on" : ""}"></i>`; al += "</div>";
-  return `<div class="phead" style="margin:0 0 10px"><div>${X.role ? `<span class="tag">${esc(roleName(X.role))}</span>` : ""}${solved() ? ' <span class="tag" style="color:var(--ok);border-color:var(--ok)">resuelto</span>' : ""}${guided() && !solved() ? ' <span class="tag" style="color:var(--amber);border-color:var(--amber)">modo guiado</span>' : ""}</div><div class="meters">${al}</div></div>`;
+  return `<div class="phead" style="margin:0 0 10px"><div>${X.role ? `<span class="tag">${esc(roleName(X.role))}</span>` : ""}${solved() ? ' <span class="tag" style="color:var(--ok);border-color:var(--ok)">resuelto</span>' : ""}${guided() && !solved() ? ' <span class="tag" style="color:var(--amber);border-color:var(--amber)">modo guiado</span>' : ""}</div><div class="meters">${al}${X.role && X.G.test ? '<button class="btn" data-act="testrole" type="button" title="Solo en modo prueba">Cambiar de rol (modo prueba)</button>' : ""}</div></div>`;
 }
 function picker() {
   const p = PZ[X.pid], claim = Z().claim || {};
@@ -438,6 +438,7 @@ function onClick(e) {
     X.ksel = X.ksel === id ? null : id; return draw(); }
   if (D.bin) { if (X.ksel != null) { const id = X.ksel; X.ksel = null; commit((s) => { s.k[id] = D.bin; }); } return; }
   const a = D.act;
+  if (a === "testrole") { if (!X.G.test || !X.role) return; const r = X.role; X.role = null; upd({ ["claim." + r]: null }); return; }
   if (a === "hint") { if (off()) return; upd({ ["hints." + X.role]: DB.inc(1), nHint: DB.inc(1) }); money(MONEY.hint, "pista"); return; }
   if (a === "kfilter") return commit((s) => { s.kfilter = !s.kfilter; });
   if (a === "oshot") {
