@@ -2,7 +2,7 @@
 // MODO PROFESOR
 // ======================================================
 import { DB } from "./db.js";
-import { BANDS, PHASES, TEACHER_PASSWORD, MONEY } from "./config.js";
+import { BANDS, PHASES, TEACHER_PASSWORD, MONEY, BAND_NAMES } from "./config.js";
 import { $, esc, eu, T, bandInfo, phase, gpath, bpath, createGame, addMoney, remaining, fmt, startPlay, showErr } from "./core.js";
 
 let app, unsub = [], tick = null, G = null, BS = {};
@@ -47,7 +47,7 @@ function draw() {
   const g = G, p = phase(g.phase), r = remaining(g);
   const stg = g.stage === "play" && r === 0 ? "over" : g.stage;
   const bands = g.bands.map((id) => BS[id]).filter(Boolean);
-  const focusId = document.activeElement?.id;
+  const focusId = document.activeElement?.id, focusVal = document.activeElement?.value;
   app.innerHTML = `<div id="err" class="err" hidden></div>
   <div class="pjrow"><div><small class="stage">Partida</small> <span class="codebig">${esc(g.code)}</span>${g.test ? ' <span class="stage paused">modo prueba</span>' : ""}</div>
     <div class="row"><a class="btn" href="#/proyector/${g.code}" target="_blank" rel="noopener">Abrir proyector ↗</a><a class="btn" href="#/profe">Otra partida</a></div></div>
@@ -61,10 +61,11 @@ function draw() {
     </div>`)}
   ${T("Hilo de la partida", `<div class="phases">${PHASES.map((q, i) => `<div class="ph${i === g.phase ? " cur" : ""}"><b>${i}. ${esc(q.area)}</b><span>${esc(q.title)}</span>${q.minutes ? `<label class="row" style="gap:4px;font-size:13px;color:var(--muted)"><input class="inp" style="width:4.5em;font-size:14px;padding:4px 6px" type="number" min="1" max="60" data-min="${q.key}" value="${g.minutes?.[q.key] ?? q.minutes}" aria-label="Minutos de ${esc(q.title)}"> min</label>` : ""}<button class="btn" data-go="${i}"${i === g.phase ? " disabled" : ""}>Ir</button></div>`).join("")}</div>`)}
   ${T("Bandas", `<table class="tbl"><thead><tr><th>Banda</th><th>Botín</th><th>Alumnos</th><th>Ajustar dinero</th></tr></thead><tbody>
-    ${bands.map((b) => { const ms = Object.values(b.members || {}).filter(Boolean); return `<tr><td><span class="dot" style="--bc:${b.color}"></span><b>${esc(b.name)}</b><br><small style="color:var(--muted)">grupo de ${b.size}</small></td><td>${eu(Math.max(0, b.botin))}</td><td>${ms.length ? ms.map((m) => esc(m.name)).join(", ") : '<span style="color:var(--muted)">nadie aún</span>'}</td>
+    ${bands.map((b) => { const ms = Object.values(b.members || {}).filter(Boolean); return `<tr><td><form class="row" data-name="${b.id}" style="gap:6px"><span class="dot" style="--bc:${b.color}"></span><input class="inp" id="nm-${b.id}" style="width:14em;font-size:14px;padding:6px" maxlength="32" value="${esc(b.name)}" aria-label="Nombre de la banda ${esc(bandInfo(b.id).name)}"><button class="btn" type="button" data-dice="${b.id}" title="Nombre aleatorio" aria-label="Nombre aleatorio">🎲</button><button class="btn">Guardar</button></form><small style="color:var(--muted)">color ${esc(bandInfo(b.id).name).toLowerCase()} · grupo de ${b.size}</small></td><td>${eu(Math.max(0, b.botin))}</td><td>${ms.length ? ms.map((m) => esc(m.name)).join(", ") : '<span style="color:var(--muted)">nadie aún</span>'}</td>
       <td><form class="row" data-money="${b.id}"><input class="inp" style="width:9em;font-size:14px;padding:6px" type="number" step="50000" placeholder="±50000" aria-label="Cantidad para ${esc(b.name)}"><button class="btn">Aplicar</button></form></td></tr>`; }).join("")}
   </tbody></table>`)}`;
-  if (focusId && $("#" + focusId)) $("#" + focusId).focus();
+  const fe = focusId && document.getElementById(focusId);
+  if (fe) { if (focusVal != null && "value" in fe) fe.value = focusVal; fe.focus(); }
 }
 
 document.addEventListener("click", async (e) => {
@@ -80,6 +81,17 @@ document.addEventListener("click", async (e) => {
     if (a === "plus") await DB.update(path, { endsAt: g.endsAt + 120000 });
     if (a === "next") await DB.update(path, { phase: g.phase + 1, stage: "ready", endsAt: null, remaining: null });
   } catch (err) { showErr(err); }
+});
+document.addEventListener("click", (e) => {
+  const d = e.target.closest("[data-dice]"); if (!d || !G) return;
+  const used = new Set(Object.values(BS).map((b) => b.name)), inp = document.getElementById("nm-" + d.dataset.dice);
+  const pool = BAND_NAMES.filter((n) => !used.has(n) && n !== inp.value);
+  inp.value = pool[Math.floor(Math.random() * pool.length)] || inp.value; inp.focus();
+});
+document.addEventListener("submit", async (e) => {
+  const f = e.target.closest("form[data-name]"); if (!f || !G) return; e.preventDefault();
+  const v = f.querySelector("input").value.trim().slice(0, 32); if (!v) return;
+  try { await DB.update(bpath(G.code, f.dataset.name), { name: v }); } catch (err) { showErr(err); }
 });
 document.addEventListener("submit", async (e) => {
   const f = e.target.closest("form[data-money]"); if (!f || !G) return; e.preventDefault();

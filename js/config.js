@@ -55,3 +55,14 @@ export const MONEY = {
   alarm: -50000,
   block: -250000,
 };
+
+// Nombres de banda para el dado del profe (atraco + ciclo de Animación 3D)
+export const BAND_NAMES = [
+  "Los Renderizados", "La Banda del Keyframe", "Los Sin Pérdida", "Los del 4:2:0", "Los Hijos de Nyquist",
+  "La Banda del Kerning", "Los Low Poly", "Los Píxeles Muertos", "Los Bitrateros", "La Banda del Croma",
+  "Los Sin Rigging", "Los Interpolados", "Los del Frame Perdido", "Las Curvas de Bézier", "La Banda del Clipping",
+  "Los Entrelazados", "Los del Canal Alfa", "Los Huérfanos del Render", "Los Vectoriales", "La Mafia del CMYK",
+  "Los Fuera de Campo", "Los del Último Render", "La Banda del Motion Blur", "Los Normal Map", "Los Ruido Rosa",
+  "Los Sin Texturas", "La Banda del Timecode", "Los del Plano Secuencia", "Los Polígonos Rotos", "Los Sobreexpuestos",
+  "Los del Ctrl+Z", "La Banda del Ojo de Pez", "Los Saturados", "Los del Fondo Verde", "Los Huesos del Rig",
+];

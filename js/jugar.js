@@ -29,8 +29,10 @@ function askCode(msg) {
   };
 }
 
-function pickBand(g) {
-  app.innerHTML = `<p><button class="btn" type="button" id="backc">← Cambiar código</button></p><h1>¿De qué banda eres?</h1><div class="bandpick">${g.bands.map((id) => { const b = bandInfo(id); return `<button type="button" data-b="${id}" style="--bc:${b.color}">Banda ${esc(b.name)}<small>pulsa para elegir</small></button>`; }).join("")}</div>
+async function pickBand(g) {
+  const names = {};
+  await Promise.all(g.bands.map(async (id) => { const b = await DB.get(bpath(g.code, id)).catch(() => null); names[id] = b?.name || bandInfo(id).name; }));
+  app.innerHTML = `<p><button class="btn" type="button" id="backc">← Cambiar código</button></p><h1>¿De qué banda eres?</h1><div class="bandpick">${g.bands.map((id) => { const b = bandInfo(id); return `<button type="button" data-b="${id}" style="--bc:${b.color}">${esc(names[id])}<small>banda ${esc(b.name).toLowerCase()}</small></button>`; }).join("")}</div>
   <form id="jn" class="panel" hidden style="margin-top:16px"><h3>Tu nombre</h3><div class="row"><input class="inp" maxlength="20" placeholder="Nombre" aria-label="Tu nombre" required><button class="btn red">Unirme</button></div></form>`;
   $("#backc").onclick = () => askCode();
   let band = null;
@@ -52,7 +54,7 @@ async function join(m) {
 function draw() {
   if (!G || !B) return;
   const p = phase(G.phase), mem = Object.entries(B.members || {}).filter(([, x]) => x);
-  const top = `<div class="pjrow" style="margin-bottom:14px"><div><span class="dot" style="--bc:${B.color}"></span><b>Banda ${esc(B.name)}</b> · ${esc(me.name)} <span style="color:var(--muted)">· botín ${eu(Math.max(0, B.botin))}</span></div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar de banda</button>' : ""}<button class="btn" id="out" type="button">Salir</button></div></div>`;
+  const top = `<div class="pjrow" style="margin-bottom:14px"><div><span class="dot" style="--bc:${B.color}"></span><b>${esc(B.name)}</b> · ${esc(me.name)} <span style="color:var(--muted)">· botín ${eu(Math.max(0, B.botin))}</span></div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar de banda</button>' : ""}<button class="btn" id="out" type="button">Salir</button></div></div>`;
   let body;
   if (G.stage === "video") body = `<div class="watch"><b>Mirad al proyector</b><p class="lead">La Directora tiene algo que contaros.</p></div>`;
   else if (G.phase === 0) body = header(p) + T("Tu banda", `<p style="margin:0 0 10px">Conectados: ${mem.map(([, x]) => esc(x.name)).join(", ")}</p>
