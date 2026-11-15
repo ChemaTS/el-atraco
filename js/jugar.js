@@ -67,12 +67,10 @@ function draw() {
   const body = $("#jbody");
   if (isPz) { body.innerHTML = header(p) + '<div id="pzroot"></div>'; mountPuzzle($("#pzroot"), { code: me.code, band: me.band, pid: p.key, G, B }); return; }
   if (G.stage === "video") body.innerHTML = `<div class="watch"><b>Mirad al proyector</b><p class="lead">La Directora tiene algo que contaros.</p></div>`;
-  else if (G.phase === 0) body.innerHTML = header(p) + T("Tu banda", `<p style="margin:0 0 10px">Conectados: ${mem.map(([, x]) => esc(x.name)).join(", ")}</p>
-      <div class="row"><span>Somos</span><button class="btn${B.size === 4 ? " on" : ""}" data-size="4">4</button><button class="btn${B.size === 5 ? " on" : ""}" data-size="5">5</button><span style="color:var(--muted)">(con 4, dos roles se juntan en una pantalla)</span></div>`)
+  else if (G.phase === 0) body.innerHTML = header(p) + T("Tu banda", `<p style="margin:0">Conectados (${mem.length}): ${mem.map(([, x]) => esc(x.name)).join(", ")}</p><p style="margin:8px 0 0;color:var(--muted)">${mem.length >= 5 ? "Grupo de 5: cada uno tendrá su rol." : "Si empezáis siendo 4 o menos, dos roles irán juntos en una pantalla."}</p>`)
       + `<div class="watch"><b>Esperando al resto…</b><p class="lead">La partida empieza cuando el profe lance la intro.</p></div>`;
   else if (G.stage === "ready") body.innerHTML = header(p) + `<div class="watch"><b>Preparados</b><p class="lead">Atentos al proyector.</p></div>`;
   else if (G.stage === "paused") body.innerHTML = header(p) + `<div class="watch"><b>Pausa</b></div>`;
   else body.innerHTML = header(p) + `<div class="panel"><h3>${esc(p.area)}</h3><p style="margin:0">Aquí aparecerá «${esc(p.title)}» (siguientes partes del montaje).</p></div>`;
-  body.querySelectorAll("[data-size]").forEach((b) => b.onclick = () => DB.update(bpath(me.code, me.band), { size: +b.dataset.size }).catch(showErr));
 }
 async function quit() { stop(); try { await DB.update(bpath(me.code, me.band), { ["members." + SEAT]: null }); } catch (e) { console.error(e); } ME.clear(); }
