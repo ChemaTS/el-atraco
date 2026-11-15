@@ -5,7 +5,7 @@ import { DB } from "./db.js";
 import { BANDS, PHASES, TEACHER_PASSWORD, MONEY, BAND_NAMES } from "./config.js";
 import { PUZZLES, PZPATH } from "./puzzles.js";
 import { avName } from "./avatars.js";
-import { $, esc, eu, T, bandInfo, phase, gpath, bpath, createGame, addMoney, remaining, fmt, startPlay, showErr } from "./core.js";
+import { active, $, esc, eu, T, bandInfo, phase, gpath, bpath, createGame, addMoney, remaining, fmt, startPlay, showErr } from "./core.js";
 
 let solOpen = false;
 document.addEventListener("toggle", (e) => { if (e.target.id === "soldet") solOpen = e.target.open; }, true);
@@ -81,7 +81,7 @@ function draw() {
   ${pzPanel()}
   ${T("Hilo de la partida", `<div class="phases">${PHASES.map((q, i) => `<div class="ph${i === g.phase ? " cur" : ""}"><b>${i}. ${esc(q.area)}</b><span>${esc(q.title)}</span>${q.minutes ? `<label class="row" style="gap:4px;font-size:13px;color:var(--muted)"><input class="inp" style="width:4.5em;font-size:14px;padding:4px 6px" type="number" min="1" max="60" data-min="${q.key}" value="${g.minutes?.[q.key] ?? q.minutes}" aria-label="Minutos de ${esc(q.title)}"> min</label>` : ""}<button class="btn" data-go="${i}"${i === g.phase ? " disabled" : ""}>Ir</button></div>`).join("")}</div>`)}
   ${T("Bandas", `<table class="tbl"><thead><tr><th>Banda</th><th>Botín</th><th>Alumnos</th><th>Ajustar dinero</th></tr></thead><tbody>
-    ${bands.map((b) => { const ms = Object.values(b.members || {}).filter(Boolean); return `<tr><td><form class="row" data-name="${b.id}" style="gap:6px"><span class="dot" style="--bc:${b.color}"></span><input class="inp" id="nm-${b.id}" style="width:14em;font-size:14px;padding:6px" maxlength="32" value="${esc(b.name)}" aria-label="Nombre de la banda ${esc(bandInfo(b.id).name)}"><button class="btn" type="button" data-dice="${b.id}" title="Nombre aleatorio" aria-label="Nombre aleatorio">🎲</button><button class="btn">Guardar</button></form><small style="color:var(--muted)">color ${esc(bandInfo(b.id).name).toLowerCase()} · grupo de <select data-size="${b.id}" aria-label="Tamaño del grupo ${esc(b.name)}" style="background:var(--bg);color:var(--fg);border:1px solid var(--line)"><option${b.size === 4 ? " selected" : ""}>4</option><option${b.size === 5 ? " selected" : ""}>5</option></select>${g.phase === 0 ? " (se fija solo al empezar)" : ""}</small></td><td>${eu(Math.max(0, b.botin))}</td><td>${ms.length ? ms.map((m) => avName(m, 22)).join("") : '<span style="color:var(--muted)">nadie aún</span>'}</td>
+    ${bands.map((b) => { const ms = Object.values(b.members || {}).filter(active); return `<tr><td><form class="row" data-name="${b.id}" style="gap:6px"><span class="dot" style="--bc:${b.color}"></span><input class="inp" id="nm-${b.id}" style="width:14em;font-size:14px;padding:6px" maxlength="32" value="${esc(b.name)}" aria-label="Nombre de la banda ${esc(bandInfo(b.id).name)}"><button class="btn" type="button" data-dice="${b.id}" title="Nombre aleatorio" aria-label="Nombre aleatorio">🎲</button><button class="btn">Guardar</button></form><small style="color:var(--muted)">color ${esc(bandInfo(b.id).name).toLowerCase()} · grupo de <select data-size="${b.id}" aria-label="Tamaño del grupo ${esc(b.name)}" style="background:var(--bg);color:var(--fg);border:1px solid var(--line)"><option${b.size === 4 ? " selected" : ""}>4</option><option${b.size === 5 ? " selected" : ""}>5</option></select>${g.phase === 0 ? " (se fija solo al empezar)" : ""}</small></td><td>${eu(Math.max(0, b.botin))}</td><td>${ms.length ? ms.map((m) => avName(m, 22)).join("") : '<span style="color:var(--muted)">nadie aún</span>'}</td>
       <td><form class="row" data-money="${b.id}"><input class="inp" style="width:9em;font-size:14px;padding:6px" type="number" step="50000" placeholder="±50000" aria-label="Cantidad para ${esc(b.name)}"><button class="btn">Aplicar</button></form></td></tr>`; }).join("")}
   </tbody></table>`)}`;
   const fe = focusId && document.getElementById(focusId);
@@ -93,7 +93,7 @@ document.addEventListener("click", async (e) => {
   const t = e.target.closest("[data-a],[data-go]"); if (!t) return;
   const g = G, path = gpath(g.code);
   // al arrancar la partida, cada banda queda fijada en 4 o 5 según los conectados
-  const freeze = () => g.phase === 0 ? Promise.all(g.bands.map((id) => { const n = Object.values(BS[id]?.members || {}).filter(Boolean).length; return DB.update(bpath(g.code, id), { size: n >= 5 ? 5 : 4 }); })) : null;
+  const freeze = () => g.phase === 0 ? Promise.all(g.bands.map((id) => { const n = Object.values(BS[id]?.members || {}).filter(active).length; return DB.update(bpath(g.code, id), { size: n >= 5 ? 5 : 4 }); })) : null;
   try {
     if (t.dataset.a === "video" || t.dataset.a === "skip" || t.dataset.a === "next" || (t.dataset.go && +t.dataset.go !== 0)) await freeze();
     if (t.dataset.go) return DB.update(path, { phase: +t.dataset.go, stage: "ready", endsAt: null, remaining: null });

@@ -4,7 +4,7 @@
 import { DB } from "./db.js";
 import { MEDIA } from "./config.js";
 import { avatarSVG } from "./avatars.js";
-import { $, esc, eu, phase, gpath, remaining, fmt, startPlay, header } from "./core.js";
+import { active, $, esc, eu, phase, gpath, remaining, fmt, startPlay, header } from "./core.js";
 
 let app, unsub = [], tick = null, G = null, BS = {}, armed = false, playingKey = null;
 const stop = () => { unsub.forEach((f) => f()); unsub = []; clearInterval(tick); };
@@ -49,7 +49,7 @@ function draw() {
 function drawBoard() {
   const el = $("#board"); if (!el || !G) return;
   el.innerHTML = G.bands.map((id) => BS[id]).filter(Boolean).map((b) => {
-    const ms = Object.values(b.members || {}).filter(Boolean);
+    const ms = Object.values(b.members || {}).filter(active);
     return `<div class="pjband" style="--bc:${b.color}"><b>${esc(b.name)}</b><span>${eu(Math.max(0, b.botin))}</span><div class="avs">${ms.map((m) => avatarSVG(m.av ?? 0, 40)).join("") || "<small>nadie aún</small>"}</div></div>`;
   }).join("");
 }

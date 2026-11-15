@@ -2,7 +2,7 @@
 // PANTALLA DEL ALUMNO
 // ======================================================
 import { DB } from "./db.js";
-import { $, esc, eu, T, bandInfo, phase, gpath, bpath, remaining, fmt, header, SEAT, ME, showErr } from "./core.js";
+import { active, $, esc, eu, T, bandInfo, phase, gpath, bpath, remaining, fmt, header, SEAT, ME, showErr } from "./core.js";
 import { PHASES } from "./config.js";
 import { avatarSVG, avName, AVATARS, AV_NAMES } from "./avatars.js";
 import { mountPuzzle, updatePuzzle, unmountPuzzle, isPuzzle } from "./puzzles.js";
@@ -41,15 +41,18 @@ function pickBand(g) {
   paintAv();
   $("#avg").onclick = (e) => { const b = e.target.closest("[data-av]"); if (b) { av = +b.dataset.av; paintAv(); } };
   const paint = () => {
-    $("#bp").innerHTML = g.bands.map((id) => { const b = bandInfo(id), d = BD[id] || {}, ms = Object.values(d.members || {}).filter(Boolean);
+    $("#bp").innerHTML = g.bands.map((id) => { const b = bandInfo(id), d = BD[id] || {}, ms = Object.values(d.members || {}).filter(active);
       return `<button type="button" data-b="${id}" style="--bc:${b.color}${band === id ? ";outline:3px solid #fff" : ""}">${esc(d.name || b.name)}<small>banda ${esc(b.name).toLowerCase()} · ${ms.length} dentro</small>${ms.length ? `<small style="color:var(--fg)">${ms.map((m) => avName(m, 20)).join("")}</small>` : ""}</button>`; }).join("");
   };
   unsub.push(DB.onCol(`games/${g.code}/bands`, (all) => { BD = all || {}; paint(); }));
   $("#bp").onclick = (e) => { const bt = e.target.closest("[data-b]"); if (!bt) return; band = bt.dataset.b; paint(); $("#jn").hidden = false; $("#jn input").focus(); };
   $("#jn").onsubmit = (e) => {
     e.preventDefault(); const name = $("#jn input").value.trim().replace(/\s+/g, " "); if (!name || !band) return;
-    const taken = Object.values(BD[band]?.members || {}).filter(Boolean).some((m) => m.name.toLowerCase() === name.toLowerCase());
-    if (taken && !$("#jnw").dataset.ok) { $("#jnw").hidden = false; $("#jnw").dataset.ok = 1; $("#jnw").textContent = "Ya hay alguien con ese nombre en esta banda. Añade tu apellido, o pulsa Unirme otra vez si eres tú desde otro ordenador."; return; }
+    const same = Object.entries(BD[band]?.members || {}).find(([, m]) => m && m.name.toLowerCase() === name.toLowerCase());
+    if (same && active(same[1]) && !$("#jnw").dataset.ok) { $("#jnw").hidden = false; $("#jnw").dataset.ok = 1; $("#jnw").textContent = "Ya hay alguien conectado con ese nombre en esta banda. Si eres tú (te saliste o cambiaste de ordenador), pulsa Unirme otra vez y recuperas tu sitio y tu rol. Si no, añade tu apellido."; return; }
+    if (same) { // recuperar el puesto anterior: mismo asiento → mismo rol
+      const prev = same[1]; sessionStorage.setItem("seat", same[0]);
+      sessionStorage.setItem("me", JSON.stringify({ code: g.code, band, name: prev.name, av: prev.av ?? av, seat: same[0] })); stop(); location.reload(); return; }
     stop(); me = { code: g.code, band, name, av, seat: SEAT }; ME.set(me); join(me);
   };
 }
@@ -68,10 +71,10 @@ async function join(m) {
 let mode = null;
 function draw() {
   if (!G || !B) return;
-  const p = phase(G.phase), mem = Object.entries(B.members || {}).filter(([, x]) => x);
+  const p = phase(G.phase), mem = Object.entries(B.members || {}).filter(([, x]) => active(x));
   if (!$("#jtop")) { app.innerHTML = '<div id="jtop"></div><div id="jbody"></div>'; mode = null; }
   $("#jtop").innerHTML = `<div class="pjrow" style="margin-bottom:14px"><div><span class="dot" style="--bc:${B.color}"></span><b>${esc(B.name)}</b> · ${avName(me, 26)} <span style="color:var(--muted)">· botín ${eu(Math.max(0, B.botin))}</span></div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar de banda</button>' : ""}<button class="btn" id="out" type="button">Salir</button></div></div>`;
-  $("#out").onclick = async () => { await quit(); askCode(); };
+  $("#out").onclick = async (e) => { const b = e.currentTarget; if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = "¿Salir? Pulsa otra vez"; setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = "Salir"; } }, 3000); return; } await quit(); askCode(); };
   const cb = $("#chb"); if (cb) cb.onclick = async () => { const g = G; await quit(); pickBand(g); };
   const isPz = isPuzzle(p.key) && (G.stage === "play" || G.stage === "paused");
   const m = isPz ? "pz:" + p.key : JSON.stringify([G.phase, G.stage, B.size, mem.map(([, x]) => x.name)]);
@@ -86,4 +89,4 @@ function draw() {
   else if (G.stage === "paused") body.innerHTML = header(p) + `<div class="watch"><b>Pausa</b></div>`;
   else body.innerHTML = header(p) + `<div class="panel"><h3>${esc(p.area)}</h3><p style="margin:0">Aquí aparecerá «${esc(p.title)}» (siguientes partes del montaje).</p></div>`;
 }
-async function quit() { stop(); try { await DB.update(bpath(me.code, me.band), { ["members." + SEAT]: null }); } catch (e) { console.error(e); } ME.clear(); }
+async function quit() { stop(); try { await DB.update(bpath(me.code, me.band), { ["members." + SEAT + ".left"]: true }); } catch (e) { console.error(e); } sessionStorage.removeItem("me"); }

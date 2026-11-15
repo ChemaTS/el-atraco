@@ -24,6 +24,8 @@ export const ME = {
   clear() { sessionStorage.removeItem("me"); localStorage.removeItem("me"); },
 };
 
+// miembro activo de la banda (los que pulsaron "Salir" quedan marcados para poder volver)
+export const active = (m) => m && !m.left;
 export const gpath = (code) => `games/${code}`;
 export const bpath = (code, b) => `games/${code}/bands/${b}`;
 
