@@ -30,8 +30,9 @@ function askCode(msg) {
 }
 
 function pickBand(g) {
-  app.innerHTML = `<h1>¿De qué banda eres?</h1><div class="bandpick">${g.bands.map((id) => { const b = bandInfo(id); return `<button type="button" data-b="${id}" style="--bc:${b.color}">Banda ${esc(b.name)}<small>pulsa para elegir</small></button>`; }).join("")}</div>
+  app.innerHTML = `<p><button class="btn" type="button" id="backc">← Cambiar código</button></p><h1>¿De qué banda eres?</h1><div class="bandpick">${g.bands.map((id) => { const b = bandInfo(id); return `<button type="button" data-b="${id}" style="--bc:${b.color}">Banda ${esc(b.name)}<small>pulsa para elegir</small></button>`; }).join("")}</div>
   <form id="jn" class="panel" hidden style="margin-top:16px"><h3>Tu nombre</h3><div class="row"><input class="inp" maxlength="20" placeholder="Nombre" aria-label="Tu nombre" required><button class="btn red">Unirme</button></div></form>`;
+  $("#backc").onclick = () => askCode();
   let band = null;
   app.querySelectorAll("[data-b]").forEach((bt) => bt.onclick = () => { band = bt.dataset.b; app.querySelectorAll("[data-b]").forEach((x) => x.style.outline = x === bt ? "3px solid #fff" : ""); $("#jn").hidden = false; $("#jn input").focus(); });
   $("#jn").onsubmit = (e) => { e.preventDefault(); const name = $("#jn input").value.trim(); if (!name || !band) return; me = { code: g.code, band, name }; ME.set(me); join(me); };
@@ -50,8 +51,8 @@ async function join(m) {
 
 function draw() {
   if (!G || !B) return;
-  const p = phase(G.phase), mem = Object.entries(B.members || {});
-  const top = `<div class="pjrow" style="margin-bottom:14px"><div><span class="dot" style="--bc:${B.color}"></span><b>Banda ${esc(B.name)}</b> · ${esc(me.name)} <span style="color:var(--muted)">· botín ${eu(Math.max(0, B.botin))}</span></div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div><button class="btn" id="out" type="button">Salir</button></div></div>`;
+  const p = phase(G.phase), mem = Object.entries(B.members || {}).filter(([, x]) => x);
+  const top = `<div class="pjrow" style="margin-bottom:14px"><div><span class="dot" style="--bc:${B.color}"></span><b>Banda ${esc(B.name)}</b> · ${esc(me.name)} <span style="color:var(--muted)">· botín ${eu(Math.max(0, B.botin))}</span></div><div class="row"><div class="timer" id="jt" style="font-size:28px"></div>${G.phase === 0 && G.stage !== "video" ? '<button class="btn" id="chb" type="button">Cambiar de banda</button>' : ""}<button class="btn" id="out" type="button">Salir</button></div></div>`;
   let body;
   if (G.stage === "video") body = `<div class="watch"><b>Mirad al proyector</b><p class="lead">La Directora tiene algo que contaros.</p></div>`;
   else if (G.phase === 0) body = header(p) + T("Tu banda", `<p style="margin:0 0 10px">Conectados: ${mem.map(([, x]) => esc(x.name)).join(", ")}</p>
@@ -61,7 +62,8 @@ function draw() {
   else if (G.stage === "paused") body = header(p) + `<div class="watch"><b>Pausa</b></div>`;
   else body = header(p) + `<div class="panel"><h3>${esc(p.area)}</h3><p style="margin:0">Aquí aparecerá el puzzle «${esc(p.title)}» (parte 2 del montaje).</p></div>`;
   app.innerHTML = top + body;
-  $("#out").onclick = async () => { if (!confirmLeave()) return; ME.clear(); stop(); askCode(); };
+  $("#out").onclick = async () => { await quit(); askCode(); };
+  const cb = $("#chb"); if (cb) cb.onclick = async () => { const g = G; await quit(); pickBand(g); };
   app.querySelectorAll("[data-size]").forEach((b) => b.onclick = () => DB.update(bpath(me.code, me.band), { size: +b.dataset.size }).catch(showErr));
 }
-function confirmLeave() { const b = $("#out"); if (b.dataset.sure) return true; b.dataset.sure = 1; b.textContent = "¿Seguro? Pulsa otra vez"; return false; }
+async function quit() { stop(); try { await DB.update(bpath(me.code, me.band), { ["members." + SEAT]: null }); } catch (e) { console.error(e); } ME.clear(); }

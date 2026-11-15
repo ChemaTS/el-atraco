@@ -48,7 +48,7 @@ function draw() {
 function drawBoard() {
   const el = $("#board"); if (!el || !G) return;
   el.innerHTML = G.bands.map((id) => BS[id]).filter(Boolean).map((b) => {
-    const n = Object.keys(b.members || {}).length;
+    const n = Object.values(b.members || {}).filter(Boolean).length;
     return `<div class="pjband" style="--bc:${b.color}"><b>${esc(b.name)}</b><span>${eu(Math.max(0, b.botin))}</span><small>${n} conectado${n === 1 ? "" : "s"}</small></div>`;
   }).join("");
 }
