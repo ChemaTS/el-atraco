@@ -45,6 +45,7 @@ function commit(mut) {
   if (Object.keys(d).length) DB.update(pzpath(X.code, X.band, X.pid), d).catch(console.error);
   draw();
 }
+function commitForce(mut) { const before = clone(X.st); mut(X.st); const d = diff(before, X.st, "st", {}); if (Object.keys(d).length) DB.update(pzpath(X.code, X.band, X.pid), d).catch(console.error); }
 const upd = (d) => DB.update(pzpath(X.code, X.band, X.pid), d).catch(console.error);
 const money = (d, why) => addMoney(X.code, X.band, d, why, X.pid).catch(console.error);
 
@@ -256,6 +257,120 @@ PZ.t2.teacher = "<ul><li>Maquetador: la caja va de 0p a 3p → <b>3 picas</b>. M
 PZ.f.teacher = "<ul><li>Sala: el espectro llega a <b>23 kHz</b> → Nyquist: muestreo &gt; 46 kHz → vale 48 o 96 kHz (falla 44,1: v2).</li><li>Servidor: 1.200 kbps por canal → 48 kHz × 24 bits = 1.152 ✓; 96 kHz × 24 bits = 2.304 ✗ (falla v8).</li><li>Postproductor: 120 dB → 16 bits da 96 dB ✗ (v3), 24 bits da 144 dB ✓.</li><li>Distribuidor: <b>5.1</b> (falla v5, estéreo), sin pérdidas con timecode → <b>BWF</b> (fallan WAV v1, FLAC v4, AAC v7).</li><li>Solución: <b>estreno_v6.bwf</b>.</li><li>Con 4 personas se fusionan Ingeniero de sala y Técnico del servidor.</li><li>El Montador solo puede equivocarse <b>una vez</b>: el segundo error bloquea el servidor (−250.000 €).</li></ul>";
 PZ.p.teacher = "<ul><li>Piloto 1: complementario del azul → <b>amarillo</b>. Luz: rojo + verde. Tinta: solo amarilla (absorbe el azul). Código <b>FFFF00</b>.</li><li>Piloto 2: tríada con rojo y azul → <b>verde</b>. Luz: solo verde. Tintas: cian + amarilla (absorben rojo y azul). Código <b>00FF00</b>.</li><li>Piloto 3: complementario del verde → <b>magenta</b>. Luz: rojo + azul. Tinta: solo magenta. Código <b>FF00FF</b>.</li><li>Todos los colores son puros: no hay cálculos, todo es 100 % / 0 % y FF / 00.</li><li>Cada piloto avanza por separado por el anillo. El Montador compara las cuatro muestras de cada uno y puede devolver un piloto (−50.000 €).</li><li>Apoyos visuales: plantillas de armonía (Director), tres focos solapados (Físico), demostración de una tinta y tres tintas solapadas (Impresor), referencia de canales (Programador).</li><li>Un solo error permitido al abrir. Con 4 personas se fusionan Impresor y Programador web.</li></ul>";
 PZ.t2.title = "Texto · La Fuga de la Imprenta Digital"; PZ.f.title = "Sonido · El archivo falso"; PZ.p.title = "Imagen · El anillo de color";
+
+/* ======================================================
+   V2 · EL MONITOR DE AVERÍAS (vídeo, fase 1)
+   ====================================================== */
+const MAXMOVES = 14, V2CAP = 16;
+const li = (a) => '<ul style="margin:0;padding-left:18px">' + a.map((x) => "<li>" + x + "</li>").join("") + "</ul>";
+const vsel = (k, label, opts) => `<div class="vf"><label for="vs-${k}">${label}</label><select id="vs-${k}" data-vs="${k}"${dis()}>${opts.map((o) => `<option value="${o[0]}"${st()[k] === o[0] ? " selected" : ""}>${esc(o[1])}</option>`).join("")}</select></div>`;
+const meter = (label, val, max, bad) => `<div class="mtr"><div class="mtrh"><span>${label}</span><b class="mono">${val} / ${max} Mbps</b></div><div class="mtrb"><i style="width:${Math.min(100, (val / max) * 100)}%;background:${bad ? "var(--red2)" : "var(--ok)"}"></i></div></div>`;
+function v2Req(s) { const base = +s.fps > 30 ? 12 : 8, sub = { 444: 2, 422: 1.5, 420: 1 }[s.sub]; return base * sub * (s.bits === "10" ? 1.25 : 1) * (s.tipo === "intra" ? 1.5 : 1); }
+function v2Def(s) { return { peine: s.bar === "prog", orden: s.bar === "sup", saltos: ![25, 50].includes(+s.fps), bloques: +s.br < v2Req(s), bandas: s.bits === "8" && s.sub === "420" }; }
+let clipRaf = 0, clipTmp = null;
+function clipStart() {
+  cancelAnimationFrame(clipRaf);
+  const c = X && X.root.querySelector("#clip"); if (!c) return;
+  const x = c.getContext("2d"); if (!clipTmp) clipTmp = document.createElement("canvas");
+  const W = c.width, H = c.height;
+  const loop = (now) => {
+    if (!c.isConnected || !X || X.pid !== "v2") return;
+    const s = st(), d = v2Def(s), fps = +s.fps, T0 = now / 1000, td = Math.floor(T0 * fps) / fps, tq = Math.floor(td * 25 + 1e-6) / 25;
+    x.imageSmoothingEnabled = true; x.clearRect(0, 0, W, H);
+    if (d.bandas) { const n = 7; for (let i = 0; i < n; i++) { const t = i / (n - 1); x.fillStyle = "rgb(" + Math.round(20 + t * 220) + "," + Math.round(35 + t * 105) + "," + Math.round(80 - t * 10) + ")"; x.fillRect(0, (i * H * 0.62) / n, W, (H * 0.62) / n + 1); } }
+    else { const g = x.createLinearGradient(0, 0, 0, H * 0.62); g.addColorStop(0, "#142350"); g.addColorStop(1, "#f08a4b"); x.fillStyle = g; x.fillRect(0, 0, W, H * 0.62); }
+    x.fillStyle = "#1b1722"; x.fillRect(0, H * 0.62, W, H * 0.38);
+    x.fillStyle = "#f6c96a"; x.beginPath(); x.arc(250, 48, 18, 0, 7); x.fill();
+    x.fillStyle = "#efe6e3"; x.font = "700 15px Impact, sans-serif"; x.fillText("EL ATRACO", 14, 170);
+    const sp = 260, pos = (t) => ((t * sp) % (W + 60)) - 30;
+    if (d.peine || d.orden) { const dt = d.peine ? -1 / 50 : 1 / 50; x.globalAlpha = d.orden ? 0.55 + 0.45 * (Math.floor(T0 * fps) % 2) : 1; for (let y = 0; y < 90; y++) { const t = y % 2 ? tq + dt : tq; x.fillStyle = "#fff3c4"; x.fillRect(pos(t), 60 + y, 26, 1); } x.globalAlpha = 1; }
+    else { x.fillStyle = "#fff3c4"; x.fillRect(pos(tq), 60, 26, 90); }
+    if (d.bloques) { clipTmp.width = W / 9; clipTmp.height = H / 9; const t2 = clipTmp.getContext("2d"); t2.imageSmoothingEnabled = true; t2.drawImage(c, 0, 0, W / 9, H / 9); x.imageSmoothingEnabled = false; x.drawImage(clipTmp, 0, 0, W, H); }
+    clipRaf = requestAnimationFrame(loop);
+  };
+  clipRaf = requestAnimationFrame(loop);
+}
+const v2Msg = () => (st().msg ? `<div class="jmsg"><b>Jefe de control</b>${esc(st().msg)}</div>` : "");
+const clipOff = () => v2Msg() + T("Monitor", '<p style="margin:0">Tu monitor está apagado: tu pantalla no recibe imagen del clip. Decide con lo que sabes del material.</p>');
+const clipBox = () => v2Msg() + T("Clip en el monitor", '<canvas id="clip" class="cv" width="320" height="180" aria-label="Clip de vídeo con defectos"></canvas>');
+const v2Moves = () => `<p class="lead" style="margin:0">Ajustes realizados: ${st().moves || 0} de ${MAXMOVES}. Cada ajuste de más sube la alarma.</p>`;
+const V2NAME = { peine: "dientes de sierra en el movimiento", orden: "parpadeo y retroceso en el movimiento", saltos: "movimiento a saltos", bloques: "bloques en la imagen", bandas: "bandas en los degradados" };
+PZ.v2 = {
+  fuse: ["bar", "rit"], init: () => ({ esp: "709", per: "std", bar: "prog", fps: "12", tipo: "inter", br: "4", sub: "420", bits: "8", moves: 0, msg: "" }),
+  brief: "El clip de la cinta se ve mal por varios motivos a la vez y cada uno depende de un mando distinto. Cada rol maneja los suyos y todos ven el mismo clip. El Jefe de control vigila el ancho de banda del canal, que nadie más ve, y puede devolver el trabajo.",
+  guide: "El original es PAL a 25 imágenes/s, entrelazado con las líneas pares (campo inferior) primero. Quitad las bandas con más información de color y subid el bitrate justo hasta que desaparezcan los bloques, sin pasar de 16 Mbps.",
+  roles: {
+    bar: { name: "Técnico de barrido", short: "Maneja cómo se leen los campos.", goal: "Dejar el clip sin los defectos que dependan de tu mando, sin crear otros.",
+      have: () => clipOff() + T("Tus mandos", vsel("bar", "Lectura de las líneas", [["prog", "Progresivo"], ["sup", "Entrelazado · campo superior primero"], ["inf", "Entrelazado · campo inferior primero"]]) + vsel("esp", "Espacio de color", [["709", "Rec. 709"], ["601", "Rec. 601"], ["srgb", "sRGB"]]) + vsel("per", "Perfil de exportación", [["std", "Estándar"], ["hq", "Alta calidad"], ["arc", "Archivo"]])) + v2Moves(),
+      hints: ["Tu monitor está apagado: la respuesta está en el material de origen, no en probar.", "El espacio de color y el perfil de exportación no cambian ni la calidad ni el bitrate.", "Si no respetas el orden de los campos, el movimiento parpadea y retrocede."] },
+    rit: { name: "Técnico de ritmo", short: "Maneja los fotogramas por segundo y conoce el origen.", goal: "Dejar el clip sin los defectos que dependan de tu mando, sin crear otros.",
+      have: () => ((X.role || "").split("+").includes("bar") ? "" : clipBox()) + T("Ficha del material de origen", li(["Cinta de cámara DV, norma PAL.", "Imágenes por segundo del original: <b>25</b>.", "Barrido: <b>entrelazado</b>, se capta primero el campo de las líneas <b>pares</b> (2, 4, 6, 8…)."])) + T("Tu mando", vsel("fps", "Imágenes por segundo", [["12", "12"], ["25", "25"], ["30", "30"], ["50", "50"]])) + v2Moves(),
+      hints: ["Un ritmo que no encaja con el original obliga a repetir imágenes de forma irregular.", "Un múltiplo exacto del ritmo original se repite de forma regular."] },
+    com: { name: "Ingeniero de compresión", short: "Maneja la compresión y el bitrate.", goal: "Dejar el clip sin los defectos que dependan de tus mandos, sin crear otros.",
+      have: () => clipBox() + T("Tus mandos", vsel("tipo", "Tipo de compresión", [["inter", "Interframe (GOP)"], ["intra", "Intraframe"]]) + vsel("br", "Bitrate", [["4", "4 Mbps"], ["8", "8 Mbps"], ["12", "12 Mbps"], ["16", "16 Mbps"], ["24", "24 Mbps"]])) + v2Moves(),
+      hints: ["Si el bitrate no alcanza, la imagen se rompe en bloques.", "Comprimir cada fotograma por separado cuesta más datos que apoyarse en los vecinos."] },
+    col: { name: "Colorista", short: "Maneja el color.", goal: "Dejar el clip sin los defectos que dependan de tus mandos, sin crear otros.",
+      have: () => clipBox() + T("Tus mandos", vsel("sub", "Submuestreo", [["444", "4:4:4"], ["422", "4:2:2"], ["420", "4:2:0"]]) + vsel("bits", "Profundidad", [["8", "8 bits"], ["10", "10 bits"]])) + v2Moves(),
+      hints: ["Los degradados en bandas delatan poca información de color.", "Más información de color pide más bitrate."] },
+    mon: { name: "Jefe de control", short: "Vigila el canal. Tiene el candado.", lockRole: true, goal: "Dar el visto bueno cuando el clip esté limpio y el canal aguante.",
+      have: () => { const d = v2Def(st()), act = Object.keys(d).filter((k) => d[k]), over = +st().br > V2CAP;
+        return clipBox() + T("Control de calidad", (act.length ? `<p style="margin:0 0 8px">Defectos activos: <b>${act.map((k) => V2NAME[k]).join(", ")}</b>.</p>` : '<p style="margin:0 0 8px;color:var(--ok)"><b>Sin defectos en el clip.</b></p>') + meter("Bitrate elegido (solo lo ves tú)", +st().br, V2CAP, over) + `<div class="lock" style="margin-top:12px"><button class="btn" type="button" data-act="vdev" data-k="br"${dis()}>Devolver: te has pasado de bitrate</button><button class="btn" type="button" data-act="vdev" data-k="cal"${dis()}>Devolver: la calidad no llega</button></div><p class="fb" id="fb-vdev" role="status"></p>`) + v2Moves(); },
+      lock: () => oneShotLock("Visto bueno", "Dar el visto bueno", "Clip limpio y dentro del canal. Fase 1 superada."),
+      check: () => { const d = v2Def(st()); return !Object.values(d).some(Boolean) && +st().br <= V2CAP; },
+      hints: ["Los demás no ven el límite del canal: avísales tú.", "No des el visto bueno mientras queden defectos."] },
+  },
+};
+
+/* ======================================================
+   V3 · LA CADENA DE EMISIÓN (vídeo, fase 2)
+   ====================================================== */
+function connSVG(k, l) {
+  const g = "#8a8580"; let b = "";
+  if (k === "bnc") b = `<circle cx="50" cy="40" r="26" fill="#24201f" stroke="#c9c4bc" stroke-width="4"/><circle cx="50" cy="40" r="14" fill="none" stroke="${g}" stroke-width="2"/><circle cx="50" cy="40" r="4" fill="#c9c4bc"/><rect x="21" y="38" width="6" height="4" fill="#c9c4bc"/><rect x="73" y="38" width="6" height="4" fill="#c9c4bc"/>`;
+  if (k === "hdmi") b = '<path d="M16 28h68v14l-6 8H22l-6-8z" fill="#24201f" stroke="#c9c4bc" stroke-width="2"/>' + Array.from({ length: 10 }, (_, i) => `<rect x="${26 + i * 5.6}" y="31" width="2.5" height="6" fill="#c9c4bc"/>`).join("") + Array.from({ length: 9 }, (_, i) => `<rect x="${29 + i * 5.6}" y="40" width="2.5" height="5" fill="#c9c4bc"/>`).join("");
+  if (k === "fw") b = '<path d="M26 30h48v14l-5 8H31l-5-8z" fill="#24201f" stroke="#c9c4bc" stroke-width="2"/><rect x="44" y="26" width="12" height="5" fill="#c9c4bc"/>' + Array.from({ length: 6 }, (_, i) => `<rect x="${33 + i * 7}" y="40" width="3" height="6" fill="#c9c4bc"/>`).join("");
+  if (k === "usb") b = '<rect x="22" y="26" width="56" height="28" rx="2" fill="#24201f" stroke="#c9c4bc" stroke-width="2"/><rect x="28" y="36" width="44" height="10" fill="#3b6fd6"/><rect x="34" y="31" width="5" height="4" fill="#c9c4bc"/><rect x="61" y="31" width="5" height="4" fill="#c9c4bc"/>';
+  return `<svg viewBox="0 0 100 70" class="diag" style="max-width:120px;background:#0d0b0b" role="img" aria-label="Conector ${l}">${b}</svg>`;
+}
+const V3CAM = [["EFP", "Cámara de estudio", "Solo capta la señal de vídeo. No graba: la entrega por cable a la sala técnica."], ["ENG", "Cámara de reportero", "Graba en cinta DV y la saca al ordenador por un cable de ingesta."], ["DSLR", "Cámara réflex", "Graba en tarjeta. Saca la imagen por un conector doméstico."], ["WEB", "Cámara web", "Pequeña, para videollamadas. Se enchufa al ordenador."]];
+const V3CON = [["SDI", "Coaxial BNC", "bnc"], ["FW", "FireWire (IEEE 1394)", "fw"], ["HDMI", "HDMI", "hdmi"], ["USB", "USB", "usb"]];
+const V3COD = [["none", "Sin compresión", "Cada fotograma tal cual, sin perder nada."], ["DV", "DV", "Códec de las cintas de cámara de reportero."], ["H264", "H.264", "Muy extendido; típico de cámaras réflex."], ["H265", "H.265 (HEVC)", "Sucesor de H.264, comprime más."], ["PRORES", "Apple ProRes", "Pensado para edición en Final Cut."]];
+const V3CTN = [["MXF", "MXF", "Estándar de la SMPTE."], ["MOV", "MOV", "QuickTime de Apple."], ["MP4", "MP4", "Basado en QuickTime; muy usado en distribución."], ["MKV", "MKV", "Matroska, contenedor abierto."], ["AVI", "AVI", "De Microsoft."]];
+const V3L1 = { EFP: "SDI", ENG: "FW", DSLR: "HDMI", WEB: "USB" };
+const V3L2 = { SDI: ["none"], FW: ["DV"], HDMI: ["H264", "H265"], USB: ["H264"] };
+const V3L3 = { none: ["MXF", "AVI"], DV: ["MOV", "AVI"], H264: ["MP4", "MKV", "MOV"], H265: ["MP4", "MKV"], PRORES: ["MOV"] };
+const v2sub = () => (X.v2z?.st?.sub) || "420";
+const v3Mode = () => (v2sub() === "420" ? "web" : "tv");
+const v3Links = (s) => [V3L1[s.cam] === s.con, (V3L2[s.con] || []).includes(s.cod), (V3L3[s.cod] || []).includes(s.ctn), v3Mode() === "tv" ? s.ctn === "MXF" : s.ctn === "MP4"];
+function v3Strip() {
+  const s = st(), lk = s.broken;
+  const slot = (k, l) => `<div class="cslot${s[k] ? " full" : ""}"><small>${l}</small><b>${s[k] ? esc(({ cam: V3CAM, con: V3CON, cod: V3COD, ctn: V3CTN }[k].find((p) => p[0] === s[k]) || [0, s[k]])[1]) : "—"}</b></div>`;
+  const arr = (i) => `<div class="carr${lk ? (lk[i] ? " ok" : " bad") : ""}">→</div>`;
+  return T("Cadena de emisión", '<div class="cchain">' + slot("cam", "Cámara") + arr(0) + slot("con", "Conexión") + arr(1) + slot("cod", "Códec") + arr(2) + slot("ctn", "Contenedor") + arr(3) + `<div class="cslot dest"><small>Destino</small><b>${v3Mode() === "tv" ? "Sala de control de TV" : "Plataforma de streaming"}</b></div></div>` + (lk ? '<p class="lead" style="margin:10px 0 0">Última prueba: las uniones en rojo no son compatibles.</p>' : ""));
+}
+const v3Pick = (slot, items, render) => T("Tus piezas", '<div class="pieces">' + items.map((p) => `<button type="button" class="piece${st()[slot] === p[0] ? " sel" : ""}" data-vp="${slot}.${p[0]}"${dis()}>${render(p)}</button>`).join("") + "</div>");
+PZ.v3 = {
+  fuse: ["cod", "ctn"], init: () => ({ cam: "", con: "", cod: "", ctn: "", broken: null }),
+  brief: "Hay que montar la cadena que lleva la señal hasta el destino del clip que habéis arreglado en la fase 1. El destino depende de cómo quedó su color. Cada rol solo tiene un tipo de pieza. Todos ven la cadena entera y las uniones que no encajan se ponen en rojo cuando se prueba.",
+  guide: "Cada pieza tiene que encajar con la siguiente: la cámara con su conector, el conector con lo que transporta (sin comprimir o un códec) y el códec con su contenedor. El último eslabón lo marca el destino.",
+  roles: {
+    cam: { name: "Responsable de cámaras", short: "Elige la cámara.", goal: "Colocar la cámara adecuada en la cadena.", have: () => v3Strip() + v3Pick("cam", V3CAM, (p) => `<b>${esc(p[1])}</b><span>${esc(p[2])}</span>`), hints: ["La cámara debe poder entregar la señal en la conexión que se use.", "Mira qué pide el destino."] },
+    con: { name: "Técnico de conexiones", short: "Elige el conector.", goal: "Colocar el conector adecuado en la cadena.", have: () => v3Strip() + v3Pick("con", V3CON, (p) => connSVG(p[2], p[1]) + `<b>${esc(p[1])}</b>`), hints: ["El conector debe encajar con la cámara y con lo que se transporta.", "Unos son domésticos y otros profesionales."] },
+    cod: { name: "Ingeniero de códecs", short: "Elige el códec.", goal: "Colocar el códec adecuado en la cadena.", have: () => v3Strip() + v3Pick("cod", V3COD, (p) => `<b>${esc(p[1])}</b><span>${esc(p[2])}</span>`), hints: ["El códec depende de lo que viaja por la conexión.", "Si la señal llega sin comprimir, no hace falta códec."] },
+    ctn: { name: "Archivista", short: "Elige el contenedor.", goal: "Colocar el contenedor adecuado en la cadena.", have: () => v3Strip() + v3Pick("ctn", V3CTN, (p) => `<b>${esc(p[1])}</b><span>${esc(p[2])}</span>`), hints: ["El contenedor debe aceptar el códec elegido.", "El destino pide un estándar concreto."] },
+    mon: { name: "Jefe de sala técnica", short: "Conoce el destino. Tiene el candado.", lockRole: true, goal: "Probar la cadena cuando todos hayan colocado su pieza.",
+      have: () => v3Strip() + T("Destino", (v3Mode() === "tv" ? '<p style="margin:0">Sala de control de una cadena de televisión. Recibe vídeo profesional de estudio, <b>sin comprimir</b>, y lo archiva en el contenedor estandarizado por la <b>SMPTE</b>.</p>' : '<p style="margin:0">Plataforma de streaming. Recibe vídeo <b>comprimido</b> y lo guarda en el contenedor basado en QuickTime que más se usa en distribución.</p>') + `<p class="lead" style="margin:10px 0 0">Color del clip de la fase 1: ${{ 444: "4:4:4", 422: "4:2:2", 420: "4:2:0" }[v2sub()]}${X.v2z?.solved ? "" : " (fase 1 sin superar)"}.</p>`),
+      lock: () => oneShotLock("Probar la cadena", "Probar cadena", v3Mode() === "tv" ? "La cadena funciona: señal profesional de estudio hasta la sala de control." : "La cadena funciona: el clip llega comprimido a la plataforma de streaming."),
+      req: () => ["cam", "con", "cod", "ctn"].every((k) => st()[k]), reqMsg: "Completad las cuatro piezas antes de probar.",
+      check: () => { const s = st(); return s.cam && s.con && s.cod && s.ctn && v3Links(s).every(Boolean); },
+      onFail: () => commitForce((s) => { s.broken = v3Links(s); }),
+      hints: ["Si una unión falla, hay dos piezas que no encajan entre sí.", "Cada prueba fallida sube la alarma."] },
+  },
+};
+PZ.v2.teacher = "<ul><li>Origen: cinta DV PAL, 25 fps, entrelazado con las líneas pares primero (= <b>campo inferior primero</b>).</li><li>El Técnico de barrido no ve el clip: decide con la ficha del Técnico de ritmo. Espacio de color y perfil de exportación son distractores puros (no cambian nada).</li><li>Barrido: progresivo → dientes de sierra; campo superior primero → parpadeo y retroceso; correcto: <b>inferior primero</b>.</li><li>Ritmo: vale <b>25</b> (original) o <b>50</b> (múltiplo exacto). 12 y 30 dan saltos.</li><li>Bandas: 8 bits con 4:2:0 → <b>4:2:2 o 10 bits</b>.</li><li>Bloques: necesario = 8 Mbps (hasta 30 fps) o 12 (50) × 1,5 si 4:2:2 × 1,25 si 10 bits × 1,5 si intraframe.</li><li>Tope del canal: <b>16 Mbps</b>, solo visible para el Jefe, que puede devolver el trabajo con un mensaje que ven todos.</li><li>Ocho configuraciones válidas, por ejemplo: inferior primero, 25 fps, interframe, 4:2:2 a 8 bits, 12 Mbps.</li><li>El submuestreo elegido decide el destino de la fase 2: 4:2:2 o 4:4:4 → televisión; 4:2:0 → streaming.</li><li>Máximo 14 ajustes antes de que suba la alarma. Candado de un solo intento.</li></ul>";
+PZ.v3.teacher = "<ul><li>El destino depende del submuestreo que quedó en la fase 1: 4:2:2 o 4:4:4 → <b>televisión</b>; 4:2:0 → <b>streaming</b>.</li><li>Televisión: vídeo de estudio sin comprimir + contenedor SMPTE. Solución única: <b>Cámara de estudio (EFP) → SDI (BNC) → sin compresión → MXF</b>.</li><li>Streaming: vídeo comprimido en MP4. Valen, por ejemplo, <b>Cámara réflex → HDMI → H.264 o H.265 → MP4</b> o <b>Cámara web → USB → H.264 → MP4</b>.</li><li>Un intento fallido enseña qué uniones están rotas; el segundo error bloquea.</li></ul>";
+PZ.v2.title = "Vídeo · El monitor de averías"; PZ.v3.title = "Vídeo · La cadena de emisión";
+
 export const PUZZLES = PZ;
 export const isPuzzle = (pid) => !!PZ[pid];
 
@@ -298,14 +413,16 @@ function draw() {
   X.root.innerHTML = X.role ? screen() : picker();
   Object.entries(X.fb).forEach(([id, v]) => { const el = X.root.querySelector("#" + id); if (el) { el.className = "fb " + v.cls; el.textContent = v.txt; } });
   if (X.pid === "t2" && X.role?.includes("cor")) drawSeals();
+  if (X.pid === "v2") clipStart();
   bindCalc();
   if (fid) { const el = X.root.querySelector("#" + CSS.escape(fid)) || X.root.querySelector(`[data-ph="${fid}"]`); if (el) { if (fval != null && el.value !== undefined && el.type === "text") el.value = fval; el.focus(); } }
 }
 
 /* ---------- eventos (delegados en la raíz del puzzle) ---------- */
 function onClick(e) {
-  const t = e.target.closest("[data-act],[data-role],[data-kc],[data-bin],[data-pw],[data-psel],[data-pmode],[data-ptpl],[data-pdemo]"); if (!t || !X) return;
+  const t = e.target.closest("[data-act],[data-role],[data-kc],[data-bin],[data-pw],[data-psel],[data-pmode],[data-ptpl],[data-pdemo],[data-vp]"); if (!t || !X) return;
   const D = t.dataset;
+  if (D.vp !== undefined) { const [slot, val] = D.vp.split("."); return commit((s) => { s[slot] = val; s.broken = null; }); }
   if (D.role) {
     const c = (Z().claim || {})[D.role]; if (c && c.seat !== SEAT) return say("fb-role", "warn", "Ese rol ya lo tiene otra persona.");
     if (myRole()) return;
@@ -328,16 +445,25 @@ function onClick(e) {
     const R = PZ[X.pid].roles[X.role.split("+").find((r) => PZ[X.pid].roles[r].check)];
     if (R.req && !R.req()) return say("fb-lock", "warn", R.reqMsg);
     if (R.check()) return win();
+    if (R.onFail) R.onFail();
     return oneShotFail("fb-lock");
   }
   if (a === "pconf") { const r = D.r, i = +D.i;
     if (r === "dir" && st().dir[i] == null) return say("fb-pc-" + r + i, "warn", "Marca antes el color de este piloto.");
     if (r === "pro" && !/^[0-9A-F]{6}$/.test(st().hex[i])) return say("fb-pc-" + r + i, "warn", "Escribe el código completo (6 caracteres).");
     return commit((s) => { s.conf[r][i] = 1; }); }
+  if (a === "vdev") { const d = v2Def(st()), bad = Object.values(d).some(Boolean);
+    if (D.k === "br" && +st().br > V2CAP) return commit((s) => { s.msg = "Te has pasado de bitrate: el canal no aguanta. Bajad algo."; });
+    if (D.k === "cal" && bad) return commit((s) => { s.msg = "La calidad no llega: aún hay defectos en el clip."; });
+    return say("fb-vdev", "warn", "No hay motivo para devolver por eso."); }
   if (a === "pret") { const i = +D.i; commit((s) => PR.forEach((r) => (s.conf[r][i] = 0))); alarm("fb-pret", "Piloto devuelto."); return; }
 }
 function onChange(e) {
   if (!X) return; const D = e.target.dataset;
+  if (D.vs !== undefined) { const k = D.vs, v = e.target.value; let over = false;
+    commit((s) => { s[k] = v; if (X.pid === "v2") { s.msg = ""; s.moves = (s.moves || 0) + 1; over = s.moves > MAXMOVES; } });
+    if (over) alarm("fb-vdev", "Demasiados ajustes: la alarma sube.");
+    return; }
   if (D.ffile !== undefined) return commit((s) => { s.f = +D.ffile; });
   if (D.pl !== undefined) { const [i, c] = D.pl.split(".").map(Number); return commit((s) => { s.luz[i][c] = e.target.checked ? 1 : 0; }); }
   if (D.pt !== undefined) { const [i, c] = D.pt.split(".").map(Number); return commit((s) => { s.tinta[i][c] = e.target.checked ? 1 : 0; }); }
@@ -363,13 +489,14 @@ export function mountPuzzle(root, { code, band, pid, G, B, me }) {
   const path = pzpath(code, band, pid);
   DB.get(path).then((z) => { if (!z) return DB.set(path, { st: PZ[pid].init(), alarms: 0, nAl: 0, nHint: 0, err: 0, hints: {}, claim: {}, solved: false, blk: false, guided: false }); }).catch(console.error);
   unsub = DB.onDoc(path, (z) => { if (!z || !X) return; X.Z = z; X.st = clone(z.st || PZ[pid].init()); draw(); });
+  if (pid === "v3") { const u1 = unsub, u2 = DB.onDoc(pzpath(code, band, "v2"), (z) => { if (!X) return; X.v2z = z; if (X.Z) draw(); }); unsub = () => { u1(); u2(); }; }
   ["click", "change", "submit", "dragstart", "dragover", "dragleave", "drop"].forEach((ev) => root.addEventListener(ev, H[ev]));
   lockTimer = setInterval(() => { if (X && X.Z && X.Z.lockUntil && Math.abs(X.Z.lockUntil - Date.now()) < 600) draw(); }, 500);
 }
 const H = { click: onClick, change: onChange, submit: onSubmit, dragstart: onDragStart, dragover: onDragOver, dragleave: onDragLeave, drop: onDrop };
 export function updatePuzzle(G, B) { if (!X) return; const was = timeUp(); X.G = G; X.B = B; if (was !== timeUp() || !X.role) draw(); }
 export function unmountPuzzle() {
-  if (unsub) unsub(); unsub = null; clearInterval(lockTimer);
+  if (unsub) unsub(); unsub = null; clearInterval(lockTimer); cancelAnimationFrame(clipRaf);
   if (X) ["click", "change", "submit", "dragstart", "dragover", "dragleave", "drop"].forEach((ev) => X.root.removeEventListener(ev, H[ev]));
   X = null;
 }
