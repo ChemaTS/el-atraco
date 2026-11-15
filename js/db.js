@@ -45,16 +45,16 @@ async function initFirebase() {
 
 /* ---------------- Local ---------------- */
 function initLocal() {
-  const KEY = "atraco_local_db";
+  // un documento = una clave de localStorage (evita pisar documentos de otras pestañas)
+  const PFX = "atraco_doc:";
   const bc = "BroadcastChannel" in window ? new BroadcastChannel("atraco_local") : null;
   const subs = new Set();
-  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; } };
-  const save = (t) => localStorage.setItem(KEY, JSON.stringify(t));
+  const read = (p) => { try { return JSON.parse(localStorage.getItem(PFX + p) || "null"); } catch { return null; } };
+  const write = (p, v) => localStorage.setItem(PFX + p, JSON.stringify(v));
   const fire = () => subs.forEach((f) => f());
   bc && (bc.onmessage = fire);
-  window.addEventListener("storage", (e) => e.key === KEY && fire());
+  window.addEventListener("storage", (e) => e.key && e.key.startsWith(PFX) && fire());
   const notify = () => { fire(); bc && bc.postMessage(1); };
-  const clone = (o) => (o == null ? null : JSON.parse(JSON.stringify(o)));
   const apply = (obj, k, v) => {
     const parts = k.split("."); let o = obj;
     for (let i = 0; i < parts.length - 1; i++) { o[parts[i]] = o[parts[i]] && typeof o[parts[i]] === "object" ? o[parts[i]] : {}; o = o[parts[i]]; }
@@ -67,11 +67,11 @@ function initLocal() {
   const uid = sessionStorage.getItem("uid") || "u" + Math.random().toString(36).slice(2, 10);
   sessionStorage.setItem("uid", uid);
   DB.uid = uid;
-  DB.get = async (p) => clone(load()[p] || null);
-  DB.set = async (p, d, merge = false) => { const t = load(); const base = merge ? t[p] || {} : {}; Object.entries(d).forEach(([k, v]) => apply(base, k, v)); t[p] = base; save(t); notify(); };
-  DB.update = async (p, d) => { const t = load(); if (!t[p]) throw new Error("No existe " + p); Object.entries(d).forEach(([k, v]) => apply(t[p], k, v)); save(t); notify(); };
-  DB.onDoc = (p, cb) => { let last; const f = () => { const v = JSON.stringify(load()[p] || null); if (v !== last) { last = v; cb(JSON.parse(v)); } }; subs.add(f); f(); return () => subs.delete(f); };
-  DB.onCol = (p, cb) => { let last; const f = () => { const t = load(), out = {}; Object.keys(t).forEach((k) => { if (k.startsWith(p + "/") && !k.slice(p.length + 1).includes("/")) out[k.slice(p.length + 1)] = t[k]; }); const v = JSON.stringify(out); if (v !== last) { last = v; cb(JSON.parse(v)); } }; subs.add(f); f(); return () => subs.delete(f); };
+  DB.get = async (p) => read(p);
+  DB.set = async (p, d, merge = false) => { const base = merge ? read(p) || {} : {}; Object.entries(d).forEach(([k, v]) => apply(base, k, v)); write(p, base); notify(); };
+  DB.update = async (p, d) => { const o = read(p); if (!o) throw new Error("No existe " + p); Object.entries(d).forEach(([k, v]) => apply(o, k, v)); write(p, o); notify(); };
+  DB.onDoc = (p, cb) => { let last; const f = () => { const v = localStorage.getItem(PFX + p) || "null"; if (v !== last) { last = v; cb(JSON.parse(v)); } }; subs.add(f); f(); return () => subs.delete(f); };
+  DB.onCol = (p, cb) => { let last; const f = () => { const out = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (!k.startsWith(PFX + p + "/")) continue; const id = k.slice(PFX.length + p.length + 1); if (!id.includes("/")) out[id] = read(p + "/" + id); } const v = JSON.stringify(out); if (v !== last) { last = v; cb(JSON.parse(v)); } }; subs.add(f); f(); return () => subs.delete(f); };
 }
 
 DB.onError = (e) => console.error(e);
