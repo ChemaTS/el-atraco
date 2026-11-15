@@ -152,8 +152,7 @@ export function hostTick(G, BS, { sound = false } = {}) {
   const L = G?.loc; if (!L || G.stage !== "play") return;
   const now = Date.now(), h = L.host;
   if (!h || h.id === ME_HOST || now - (h.beat || 0) > 6000) { if (!h || h.id !== ME_HOST || now - (h.beat || 0) > 3000) upLoc(G.code, { host: { id: ME_HOST, beat: now } }).catch(() => { }); }
-  else return; // otro cliente hace de anfitrión
-  if (sound) hostSound(L, now);
+  else return; // otro cliente hace de anfitrión (el sonido va aparte, ver sounds())
   if (busy) return;
   const run = (p) => { busy = true; p.catch(console.error).finally(() => setTimeout(() => (busy = false), 250)); };
   const live = ["q", "pick", "wrong"].includes(L.phase);
@@ -178,6 +177,8 @@ export function hostTick(G, BS, { sound = false } = {}) {
   }
 }
 let lastPhaseSound = null;
+// el sonido lo pone SIEMPRE el proyector, sea quien sea el anfitrión
+export function sounds(G) { const L = G?.loc; if (!L || G.stage !== "play") return; hostSound(L, Date.now()); }
 function hostSound(L, now) {
   aud();
   if (["q", "pick", "wrong"].includes(L.phase)) {

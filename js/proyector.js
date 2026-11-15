@@ -28,7 +28,7 @@ export function enter(el, args) {
     if (isFinal() && $("#board")) recuento($("#board"));
     const el = $("#pjt"); if (!el || !G) return;
     const r = remaining(G); el.textContent = r == null ? "" : fmt(r); el.classList.toggle("low", r != null && r < 60000);
-    if (isLoc()) { LOC.hostTick(G, BS, { sound: armed }); LOC.barTick(app, G); }
+    if (isLoc()) { LOC.hostTick(G, BS); if (armed) LOC.sounds(G); LOC.barTick(app, G); }
     if (isFur() && $("#board")) FUR.projector($("#board"), G, BS);
   }, 200);
 }
